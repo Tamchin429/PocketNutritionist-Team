@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- 一般検索から積極的に見つけてもらうサービスではないため。ただしこれ自体はセキュリティ対策
+       ではなく、実際のアクセス制御は認証・RLS・contract gate側で行っている -->
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="description" content="PocketNutritionist チーム管理" />
+  <title>PocketNutritionist Team</title>
+  <!-- v=5: チーム/アカウント画面・共通UX仕上げ（spinner・badge・タップ領域・アクセシビリティ） -->
+  <link rel="stylesheet" href="styles.css?v=5" />
+</head>
+<body>
+  <!-- ログイン等の認証画面でだけ見える簡易ヘッダー。ダッシュボード表示中はJS
+       （showView内でbodyへ付与するapp-shell-activeクラス）でCSS側から非表示にする -->
+  <header class="site-header">
+    <span class="app-name">PocketNutritionist Team</span>
+    <button id="logoutBtn" class="secondary" type="button" hidden>ログアウト</button>
+  </header>
+
+  <!-- V-NArishロゴの背景ウォーターマーク。画像自体は一切加工せず、opacityのみ下げて配置する。
+       クリック等の操作を妨げないようpointer-events:noneにする -->
+  <div class="bg-watermark" aria-hidden="true"></div>
+
+  <div class="page">
+    <main id="app">
+      <!-- ================= 未ログイン：メールアドレス＋パスワードログイン ================= -->
+      <!-- 初期状態はhidden。認証確認（getSession）が終わるまでlogin画面を先に出さない -->
+      <section id="view-login" class="view auth-view" hidden>
+        <div class="auth-shell">
+          <div class="auth-brand">
+            <span class="auth-brand-main">PocketNutritionist</span>
+            <span class="auth-brand-sub">Team</span>
+          </div>
+          <div class="card auth-card">
+            <label for="loginEmailInput">メールアドレス</label>
+            <input type="email" id="loginEmailInput" placeholder="you@example.com" autocomplete="email" />
+            <label for="loginPasswordInput">パスワード</label>
+            <input type="password" id="loginPasswordInput" placeholder="パスワード" autocomplete="current-password" />
+            <button id="loginSubmitBtn" class="btn-block" type="button">ログイン</button>
+            <div id="loginStatus" class="status-msg"></div>
+          </div>
+          <div class="auth-links">
+            <button id="showSignupBtn" class="link-btn" type="button">初めて利用する方はこちら（アカウントを設定）</button>
+            <button id="showResetRequestBtn" class="link-btn" type="button">パスワードを忘れた方</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 初回アカウント設定（招待メールのみ） ================= -->
+      <section id="view-signup" class="view auth-view" hidden>
+        <div class="auth-shell">
+          <div class="auth-brand">
+            <span class="auth-brand-main">PocketNutritionist</span>
+            <span class="auth-brand-sub">Team</span>
+          </div>
+          <div class="card auth-card">
+            <h1 class="auth-card-title">アカウントを設定</h1>
+            <p class="hint">チーム運営から登録されたメールアドレスのみご利用いただけます。</p>
+            <label for="signupEmailInput">メールアドレス</label>
+            <input type="email" id="signupEmailInput" placeholder="you@example.com" autocomplete="email" />
+            <label for="signupPasswordInput">パスワード（8文字以上）</label>
+            <input type="password" id="signupPasswordInput" placeholder="パスワード" autocomplete="new-password" />
+            <label for="signupPasswordConfirmInput">パスワード（確認）</label>
+            <input type="password" id="signupPasswordConfirmInput" placeholder="パスワード（確認）" autocomplete="new-password" />
+            <button id="signupSubmitBtn" class="btn-block" type="button">登録する</button>
+            <div id="signupStatus" class="status-msg"></div>
+          </div>
+
+          <!-- 登録メール送信後にだけ表示する再送エリア（signupSubmitBtn成功時にhiddenを外す） -->
+          <div class="card auth-card" id="signupResendArea" hidden>
+            <p class="hint">
+              メールが届かない場合や、確認リンクの有効期限が切れた場合は、確認メールを再送してください。
+            </p>
+            <button id="resendConfirmationBtn" class="secondary btn-block" type="button">確認メールを再送</button>
+            <div id="signupResendStatus" class="status-msg"></div>
+          </div>
+
+          <div class="auth-links">
+            <button id="backToLoginFromSignupBtn" class="link-btn" type="button">ログイン画面に戻る</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 確認リンクが無効／期限切れ（otp_expired） ================= -->
+      <section id="view-link-expired" class="view auth-view" hidden>
+        <div class="auth-shell">
+          <div class="auth-brand">
+            <span class="auth-brand-main">PocketNutritionist</span>
+            <span class="auth-brand-sub">Team</span>
+          </div>
+          <div class="card auth-card">
+            <h1 class="auth-card-title">確認リンクが無効または期限切れです</h1>
+            <p class="hint">最新の確認メールを再送してください。</p>
+            <label for="linkExpiredEmailInput">メールアドレス</label>
+            <input type="email" id="linkExpiredEmailInput" placeholder="you@example.com" autocomplete="email" />
+            <button id="linkExpiredResendBtn" class="btn-block" type="button">確認メールを再送</button>
+            <div id="linkExpiredStatus" class="status-msg"></div>
+          </div>
+          <div class="auth-links">
+            <button id="backToLoginFromLinkExpiredBtn" class="link-btn" type="button">ログイン画面に戻る</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= パスワード再設定：メール送信 ================= -->
+      <section id="view-reset-request" class="view auth-view" hidden>
+        <div class="auth-shell">
+          <div class="auth-brand">
+            <span class="auth-brand-main">PocketNutritionist</span>
+            <span class="auth-brand-sub">Team</span>
+          </div>
+          <div class="card auth-card">
+            <h1 class="auth-card-title">パスワードを再設定</h1>
+            <p class="hint">登録済みのメールアドレス宛に再設定用のリンクを送信します。</p>
+            <label for="resetRequestEmailInput">メールアドレス</label>
+            <input type="email" id="resetRequestEmailInput" placeholder="you@example.com" autocomplete="email" />
+            <button id="resetRequestSubmitBtn" class="btn-block" type="button">再設定メールを送信</button>
+            <div id="resetRequestStatus" class="status-msg"></div>
+          </div>
+          <div class="auth-links">
+            <button id="backToLoginFromResetBtn" class="link-btn" type="button">ログイン画面に戻る</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= パスワード再設定：新しいパスワードの入力 ================= -->
+      <!-- メール内の再設定リンクから戻った直後（PASSWORD_RECOVERYイベント）にだけ表示する -->
+      <section id="view-reset-password" class="view auth-view" hidden>
+        <div class="auth-shell">
+          <div class="auth-brand">
+            <span class="auth-brand-main">PocketNutritionist</span>
+            <span class="auth-brand-sub">Team</span>
+          </div>
+          <div class="card auth-card" id="resetPasswordFormArea">
+            <h1 class="auth-card-title">新しいパスワードを設定</h1>
+            <label for="newPasswordInput">新しいパスワード（8文字以上）</label>
+            <input type="password" id="newPasswordInput" placeholder="新しいパスワード" autocomplete="new-password" />
+            <label for="newPasswordConfirmInput">新しいパスワード（確認）</label>
+            <input type="password" id="newPasswordConfirmInput" placeholder="新しいパスワード（確認）" autocomplete="new-password" />
+            <button id="newPasswordSubmitBtn" class="btn-block" type="button">パスワードを更新</button>
+            <div id="resetPasswordStatus" class="status-msg"></div>
+          </div>
+          <!-- updateUser成功後にだけ表示する。更新前は絶対にdashboardへ進めない -->
+          <div class="card auth-card" id="resetPasswordDoneArea" hidden>
+            <p class="hint">パスワードを変更しました。</p>
+            <button id="proceedToDashboardBtn" class="btn-block" type="button">チーム管理画面へ進む</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 読み込み中 ================= -->
+      <!-- JS実行前・認証確認中はここが初期表示（hiddenなし） -->
+      <section id="view-loading" class="view auth-view">
+        <div class="auth-shell">
+          <div class="card auth-card loading-card">
+            <p class="hint"><span class="spinner" aria-hidden="true"></span>読み込み中...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ログイン済みだがチーム契約が利用不可 ================= -->
+      <section id="view-contract-gate" class="view auth-view" hidden>
+        <div class="auth-shell">
+          <div class="auth-brand">
+            <span class="auth-brand-main">PocketNutritionist</span>
+            <span class="auth-brand-sub">Team</span>
+          </div>
+          <div class="card auth-card gate-card">
+            <div class="gate-icon" aria-hidden="true">⛔</div>
+            <p class="gate-message" id="contractGateMessage">チームの契約状態を確認しています。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= team_adminsが0件：チーム作成 ================= -->
+      <section id="view-create-team" class="view auth-view" hidden>
+        <div class="auth-shell">
+          <div class="auth-brand">
+            <span class="auth-brand-main">PocketNutritionist</span>
+            <span class="auth-brand-sub">Team</span>
+          </div>
+          <div class="card auth-card">
+            <h1 class="auth-card-title">新しいチームを作成</h1>
+            <p class="hint">
+              このアカウントにはまだチーム管理権限がありません。チームを作成すると、
+              あなたがオーナーとして登録されます。
+            </p>
+            <label for="newTeamNameInput">チーム名</label>
+            <input type="text" id="newTeamNameInput" placeholder="例：○○バレーボールクラブ" />
+            <button id="createTeamBtn" class="btn-block" type="button">チームを作成</button>
+            <div id="createTeamStatus" class="status-msg"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= チーム管理画面（アプリシェル：サイドバー＋トップバー＋各ページ） ================= -->
+      <section id="view-dashboard" class="view" hidden>
+        <div class="app-shell-inner">
+          <nav class="team-sidebar">
+            <div class="team-sidebar-brand">
+              <span class="brand-main">PocketNutritionist</span>
+              <span class="brand-sub">Team</span>
+            </div>
+            <div class="team-nav">
+              <button class="team-nav-item active" data-team-page="home" type="button">
+                <span class="team-nav-icon" aria-hidden="true">⌂</span><span>ホーム</span>
+              </button>
+              <button class="team-nav-item" data-team-page="players" type="button">
+                <span class="team-nav-icon" aria-hidden="true">●</span><span>選手</span>
+              </button>
+              <button class="team-nav-item" data-team-page="team" type="button">
+                <span class="team-nav-icon" aria-hidden="true">◆</span><span>チーム</span>
+              </button>
+              <button class="team-nav-item" data-team-page="account" type="button">
+                <span class="team-nav-icon" aria-hidden="true">◐</span><span>アカウント</span>
+              </button>
+            </div>
+            <div class="team-sidebar-footer">
+              <span class="badge-pill" id="sidebarContractBadge" hidden>契約中</span>
+            </div>
+          </nav>
+
+          <div class="team-main">
+            <header class="team-topbar">
+              <span class="team-topbar-title" id="teamPageTitle">ホーム</span>
+              <div class="team-topbar-right">
+                <span class="team-topbar-teamname" id="topbarTeamName">-</span>
+                <span class="badge-pill" id="topbarRoleBadge" hidden>-</span>
+                <span class="avatar-circle" id="topbarAvatar" aria-hidden="true">-</span>
+              </div>
+            </header>
+
+            <div class="team-content">
+              <!-- ============ ホーム ============ -->
+              <section class="team-page active" id="team-page-home">
+                <h1 class="page-heading" id="homeTeamName">-</h1>
+
+                <div class="stat-grid">
+                  <div class="stat-card">
+                    <span class="stat-label">所属選手</span>
+                    <span class="stat-value" id="statMemberCount">-</span>
+                  </div>
+                  <div class="stat-card">
+                    <span class="stat-label">コンディション共有中</span>
+                    <span class="stat-value" id="statSharedCount">-</span>
+                  </div>
+                  <div class="stat-card">
+                    <span class="stat-label">本日入力済み</span>
+                    <span class="stat-value" id="statTodayCount">-</span>
+                  </div>
+                  <div class="stat-card">
+                    <span class="stat-label">未入力</span>
+                    <span class="stat-value" id="statNotInputCount">-</span>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <h2 class="card-title">選手コンディション</h2>
+                  <div id="homeConditionStatus" class="status-msg"></div>
+                  <p class="hint" id="homeConditionEmptyHint" hidden>
+                    コンディションを共有している選手はいません。
+                  </p>
+                  <div class="table-scroll" id="homeConditionTableWrap" hidden>
+                    <table class="data-table">
+                      <thead>
+                        <tr>
+                          <th>選手名</th>
+                          <th>今日の入力</th>
+                          <th>疲労度</th>
+                          <th>睡眠</th>
+                          <th>体重</th>
+                          <th>気分</th>
+                          <th>最終更新</th>
+                        </tr>
+                      </thead>
+                      <tbody id="homeConditionTableBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </section>
+
+              <!-- ============ 選手 ============ -->
+              <section class="team-page" id="team-page-players" hidden>
+                <div class="page-header-row">
+                  <h1 class="page-heading">選手 <span class="page-heading-sub">所属 <span id="membersCount">0人</span></span></h1>
+                  <input type="text" id="playerSearchInput" class="search-input" placeholder="選手名で検索" />
+                </div>
+                <div class="filter-toggle" id="playerFilterToggle">
+                  <button type="button" class="filter-toggle-btn active" data-player-filter="all">すべて</button>
+                  <button type="button" class="filter-toggle-btn" data-player-filter="not-inputted">未入力</button>
+                  <button type="button" class="filter-toggle-btn" data-player-filter="inputted">入力済み</button>
+                  <button type="button" class="filter-toggle-btn" data-player-filter="shared">共有ON</button>
+                </div>
+                <div class="card">
+                  <div id="membersStatus" class="status-msg"></div>
+                  <p class="hint" id="membersEmptyHint" hidden>
+                    まだチームに参加している選手はいません。
+                  </p>
+                  <p class="hint" id="playerSearchEmptyHint" hidden>該当する選手が見つかりません。</p>
+                  <div class="table-scroll" id="membersTableWrap" hidden>
+                    <table class="data-table row-clickable">
+                      <thead>
+                        <tr>
+                          <th>選手名</th>
+                          <th>共有状態</th>
+                          <th>今日の入力</th>
+                          <th>疲労度</th>
+                          <th>睡眠</th>
+                          <th>最終更新</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody id="membersList"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </section>
+
+              <!-- ============ チーム ============ -->
+              <section class="team-page" id="team-page-team" hidden>
+                <h1 class="page-heading">チーム</h1>
+
+                <div class="detail-section-title">チーム概要</div>
+                <div class="card">
+                  <div class="field-row">
+                    <span class="field-label">チーム名</span>
+                    <span id="dashboardTeamName" class="value">-</span>
+                  </div>
+                  <div class="field-row">
+                    <span class="field-label">契約状態</span>
+                    <span id="teamContractStatusValue" class="value"><span class="badge-pill">-</span></span>
+                  </div>
+                  <div class="field-row">
+                    <span class="field-label">契約期間</span>
+                    <span id="teamContractPeriodValue" class="value">-</span>
+                  </div>
+                  <div class="field-row">
+                    <span class="field-label">あなたの権限</span>
+                    <span id="dashboardRole" class="value">-</span>
+                  </div>
+                </div>
+
+                <div class="detail-section-title">選手招待</div>
+                <div class="card">
+                  <p class="hint">招待コードを使って、選手にPocketNutritionistアプリからチームへ参加してもらえます。</p>
+                  <button id="openInviteModalBtn" class="btn-inline" type="button">選手を招待</button>
+                </div>
+              </section>
+
+              <!-- ============ アカウント ============ -->
+              <section class="team-page" id="team-page-account" hidden>
+                <h1 class="page-heading">アカウント</h1>
+                <div class="card">
+                  <div class="field-row">
+                    <span class="field-label">ログインメールアドレス</span>
+                    <span id="accountEmailValue" class="value">-</span>
+                  </div>
+                  <div class="field-row">
+                    <span class="field-label">チーム内権限</span>
+                    <span id="accountRoleValue" class="value">-</span>
+                  </div>
+                  <div class="field-row">
+                    <span class="field-label">所属チーム名</span>
+                    <span id="accountTeamNameValue" class="value">-</span>
+                  </div>
+                </div>
+                <div class="card">
+                  <p class="hint">登録メールアドレス宛にパスワード再設定メールを送信します。</p>
+                  <button id="accountChangePasswordBtn" class="secondary btn-inline" type="button">パスワードを変更</button>
+                </div>
+                <div class="card">
+                  <button id="logoutBtn" class="danger btn-inline" type="button">ログアウト</button>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
+
+    <!-- ================= 選手を招待（modal） ================= -->
+    <div class="overlay-backdrop" id="inviteModalBackdrop" hidden></div>
+    <div class="card modal" id="inviteModalPanel" hidden role="dialog" aria-modal="true" aria-labelledby="inviteModalTitle">
+      <div class="modal-header">
+        <h2 id="inviteModalTitle">選手をチームへ招待</h2>
+        <button id="closeInviteModalBtn" class="secondary" type="button">閉じる</button>
+      </div>
+      <p class="hint">PocketNutritionistアプリのチーム連携から、以下の招待コードを入力してください。</p>
+      <div class="invite-code-row">
+        <code id="inviteCodeValue">--------</code>
+        <button id="copyInviteCodeBtn" class="secondary" type="button">コピー</button>
+      </div>
+      <p class="hint" id="inviteCodeExpiry" hidden></p>
+      <button id="regenerateInviteCodeBtn" class="secondary btn-block" type="button">招待コードを再発行</button>
+      <div id="dashboardStatus" class="status-msg"></div>
+    </div>
+
+    <!-- ================= 選手詳細（modal） ================= -->
+    <div class="overlay-backdrop" id="memberDetailBackdrop" hidden></div>
+    <div class="card modal" id="memberDetailPanel" hidden role="dialog" aria-modal="true" aria-labelledby="memberDetailName">
+      <div class="modal-header">
+        <div>
+          <h2 id="memberDetailName">-</h2>
+          <span class="badge-pill" id="memberDetailConditionBadge">-</span>
+        </div>
+        <button id="closeMemberDetailBtn" class="secondary" type="button">閉じる</button>
+      </div>
+
+      <div class="field-row">
+        <span class="field-label">user_id</span>
+        <span id="memberDetailUserId" class="value monospace"></span>
+      </div>
+      <div class="field-row">
+        <span class="field-label">参加日</span>
+        <span id="memberDetailJoinedAt" class="value"></span>
+      </div>
+      <div class="field-row">
+        <span class="field-label">状態</span>
+        <span id="memberDetailStatus" class="value"></span>
+      </div>
+      <div class="field-row">
+        <span class="field-label">コンディション</span>
+        <span id="memberDetailCondition" class="value"></span>
+      </div>
+
+      <hr class="modal-divider" />
+
+      <div class="detail-section-title">最新コンディション</div>
+      <p class="hint" id="memberDetailLatestEmpty" hidden>まだ同期されたデータがありません。</p>
+      <div class="latest-condition-grid" id="memberDetailLatestCard" hidden>
+        <div class="latest-condition-date" id="memberDetailLatestDate"></div>
+        <div class="latest-condition-item">
+          <span class="latest-condition-label">体重</span>
+          <span class="latest-condition-value" id="memberDetailLatestWeight">-</span>
+        </div>
+        <div class="latest-condition-item">
+          <span class="latest-condition-label">睡眠</span>
+          <span class="latest-condition-value" id="memberDetailLatestSleep">-</span>
+        </div>
+        <div class="latest-condition-item">
+          <span class="latest-condition-label">疲労度</span>
+          <span class="latest-condition-value" id="memberDetailLatestFatigue">-</span>
+        </div>
+        <div class="latest-condition-item">
+          <span class="latest-condition-label">気分</span>
+          <span class="latest-condition-value" id="memberDetailLatestFeeling">-</span>
+        </div>
+        <div class="latest-condition-item">
+          <span class="latest-condition-label">体脂肪率</span>
+          <span class="latest-condition-value" id="memberDetailLatestBodyFat">-</span>
+        </div>
+        <div class="latest-condition-item">
+          <span class="latest-condition-label">運動後体重</span>
+          <span class="latest-condition-value" id="memberDetailLatestPostWorkout">-</span>
+        </div>
+      </div>
+
+      <!-- 直近7日データが2件以上ある場合だけ表示する（既存の7日分取得結果を再利用。追加通信なし） -->
+      <div id="memberDetailSummaryArea" hidden>
+        <div class="detail-section-title">直近7日サマリー</div>
+        <div class="summary-grid">
+          <div class="summary-item">
+            <span class="summary-label">入力回数</span>
+            <span class="summary-value" id="summaryInputCount">-</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">平均睡眠</span>
+            <span class="summary-value" id="summaryAvgSleep">-</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">平均疲労度</span>
+            <span class="summary-value" id="summaryAvgFatigue">-</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">体重変化</span>
+            <span class="summary-value" id="summaryWeightChange">-</span>
+          </div>
+        </div>
+
+        <div class="chart-tabs" id="chartTabs">
+          <button type="button" class="chart-tab-btn active" data-chart-metric="fatigue">疲労度</button>
+          <button type="button" class="chart-tab-btn" data-chart-metric="sleep">睡眠</button>
+          <button type="button" class="chart-tab-btn" data-chart-metric="weight">体重</button>
+        </div>
+        <div class="mini-chart-wrap" id="miniChartWrap"></div>
+      </div>
+
+      <div class="detail-section-title">直近7日</div>
+      <div id="memberDetailConditionStatus" class="status-msg"></div>
+      <div id="memberDetailConditionList" class="condition-list"></div>
+
+      <button id="removeMemberBtn" class="danger btn-block" type="button">チームから外す</button>
+      <div id="memberDetailActionStatus" class="status-msg"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
