@@ -1,37 +1,33 @@
-/* PocketNutritionist team-web ブランドUI（本運用のチーム管理者向け管理画面）。
-   ブランドカラー：White / Blue / Yellow。PocketNutritionist iOSアプリの
-   カード配色（HomeCardContainer.swift の黄系トーン: 背景#FFF7E0 / 枠#FFD673）を踏襲し、
-   新色は既存に無いBlueのみ追加している。外部ライブラリ・フレームワークは使用しない。 */
+/* PocketNutritionist 公開ページ共通スタイル。
+   外部ライブラリ・webフォント・トラッキングスクリプトは使用しない。 */
 
 :root {
-  --blue: #168bf2;
-  --blue-dark: #0f6fcc;
-  --blue-soft: #eaf4ff;
-  --yellow: #ffd673;
-  --yellow-soft: #fff7e0;
+  --bg: #ffffff;
+  --bg-subtle: #f7f7f8;
+  --text: #1c1c1e;
+  --text-secondary: #6b6b70;
+  --border: #e5e5e7;
+  --accent: #0a7cff;
+  --max-width: 820px;
+}
 
-  --bg: #f7f8fc;
-  --card-bg: #ffffff;
-  --border: #e7eaf0;
-  --text: #111827;
-  --text-secondary: #6b7280;
-
-  /* 既存コード（app.js）がstyle.color = "var(--accent)"等の形で参照している
-     カラートークン名はそのまま維持する（トークンの中身だけブランドカラーへ更新） */
-  --accent: var(--blue);
-  --danger: #d1342c;
-  --success: #1f7a3d;
-
-  --radius-card: 18px;
-  --shadow-card: 0 1px 2px rgba(17, 24, 39, 0.04), 0 8px 24px rgba(17, 24, 39, 0.05);
-  --max-width: 480px;
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121214;
+    --bg-subtle: #1b1b1e;
+    --text: #f2f2f3;
+    --text-secondary: #9a9a9f;
+    --border: #2d2d31;
+    --accent: #4da3ff;
+  }
 }
 
 * {
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
 }
@@ -41,1968 +37,190 @@ body {
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans",
     "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
-  line-height: 1.6;
+  line-height: 1.75;
   -webkit-font-smoothing: antialiased;
-  min-height: 100vh;
-}
-
-/* ---------- V-NArishロゴ 背景ウォーターマーク ---------- */
-/* 画像自体（色・デザイン）は一切加工しない。opacityのみを下げて白背景に馴染ませる。
-   カード・文字の可読性を妨げないよう、position:fixed + pointer-events:none + かなり薄いopacity。 */
-.bg-watermark {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image: url("assets/v-narish-logo.png");
-  background-repeat: no-repeat;
-  background-position: center 145px;
-  background-size: 165px;
-  opacity: 0.035;
-}
-
-/* ログイン後（dashboard）専用の背景ウォーターマーク。ログイン画面用の.bg-watermarkとは
-   配置・サイズ・opacityの要件が大きく異なる（画面中央・大サイズ・より薄い）ため、
-   同じクラスを無理に共用せず別クラスとして扱う。画像自体は同じファイル・無加工。
-   表示はbody.app-shell-active時のみ（dashboard表示中のみ）。 */
-.dashboard-bg-watermark {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image: url("assets/v-narish-logo.png");
-  background-repeat: no-repeat;
-  background-position: center center;
-  background-size: clamp(900px, 66vw, 1650px);
-  opacity: 0.022;
-}
-
-body.app-shell-active .bg-watermark {
-  display: none;
-}
-
-body.app-shell-active .dashboard-bg-watermark {
-  display: block;
-}
-
-@media (max-width: 768px) {
-  .bg-watermark {
-    background-position: center 128px;
-    background-size: 140px;
-    opacity: 0.03;
-  }
-
-  .dashboard-bg-watermark {
-    background-size: clamp(560px, 92vw, 900px);
-    opacity: 0.018;
-  }
-}
-
-@media (max-width: 480px) {
-  .bg-watermark {
-    opacity: 0;
-  }
-
-  .dashboard-bg-watermark {
-    background-size: clamp(340px, 96vw, 520px);
-    opacity: 0.014;
-  }
-
-  /* 選手詳細等のmodalは狭い画面ではほぼ全画面表示にする */
-  .modal {
-    top: 0;
-    left: 0;
-    transform: none;
-    width: 100vw;
-    max-width: 100vw;
-    height: 100vh;
-    max-height: 100vh;
-    border-radius: 0;
-  }
-
-  .summary-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-/* ページ本体・ヘッダーはウォーターマークより手前に描画する */
-.page,
-.site-header {
-  position: relative;
-  z-index: 1;
-}
-
-/* ---------- 簡易ヘッダー（認証画面用）。ダッシュボード表示中はJSがbodyへ付与する
-   app-shell-activeクラスで非表示にする（ダッシュボード側は独自のtopbarを持つため） ---------- */
-.site-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  max-width: var(--max-width);
-  margin: 0 auto;
-  padding: 16px 20px 0;
-}
-
-.site-header .app-name {
-  width: 100%;
-  text-align: center;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-secondary);
-}
-
-body.app-shell-active .site-header {
-  display: none;
 }
 
 .page {
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: 12px 20px 80px;
+  padding: 48px 24px 96px;
 }
 
-/* ダッシュボード（アプリシェル）表示中は幅制限を解除する */
-body.app-shell-active .page {
-  max-width: none;
-  padding: 0;
+header.site-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 40px;
 }
 
-.view[hidden] {
-  display: none;
+header.site-header .app-name {
+  font-size: 17px;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--text);
 }
 
-/* ---------- 汎用カード ---------- */
-
-.card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  padding: 20px;
-  margin-bottom: 16px;
+header.site-header nav {
+  display: flex;
+  gap: 20px;
 }
 
-.card h1 {
-  font-size: 18px;
+header.site-header nav a {
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+header.site-header nav a:hover,
+header.site-header nav a:focus-visible {
+  color: var(--accent);
+}
+
+h1 {
+  font-size: 28px;
   font-weight: 700;
   margin: 0 0 8px;
+  letter-spacing: -0.01em;
 }
 
-.card-title {
-  font-size: 15px;
-  font-weight: 700;
+.updated-at {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 40px;
+}
+
+.lede {
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin: 0 0 40px;
+}
+
+section.policy-section {
+  padding: 24px 0;
+  border-top: 1px solid var(--border);
+}
+
+section.policy-section:first-of-type {
+  border-top: 1px solid var(--border);
+}
+
+section.policy-section h2 {
+  font-size: 17px;
+  font-weight: 600;
   margin: 0 0 10px;
 }
 
-.hint {
-  font-size: 13px;
-  color: var(--text-secondary);
+section.policy-section p {
   margin: 0 0 12px;
-}
-
-label {
-  display: block;
-  font-size: 12px;
   color: var(--text-secondary);
-  margin: 10px 0 4px;
+  font-size: 15px;
+  white-space: pre-line;
 }
 
-input[type="text"],
-input[type="email"],
-input[type="password"],
-input[type="date"],
-select,
-textarea {
-  width: 100%;
-  padding: 10px 12px;
+section.policy-section p:last-child {
+  margin-bottom: 0;
+}
+
+.card {
+  background: var(--bg-subtle);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  font-size: 14px;
-  background: #fff;
-  color: var(--text);
-  margin-bottom: 4px;
-  font-family: inherit;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
 }
 
-input[type="text"]:focus,
-input[type="email"]:focus,
-input[type="password"]:focus,
-input[type="date"]:focus,
-select:focus,
-textarea:focus {
-  outline: none;
-  border-color: var(--blue);
-  box-shadow: 0 0 0 3px var(--blue-soft);
-}
-
-/* トリートメント・IL登録フォーム等、ラベル＋入力欄を縦に並べるだけの汎用行
-   （.field-rowはラベル＋値の横並び表示専用のため、入力欄用にはこちらを使う） */
-.form-row {
-  margin-bottom: 12px;
-}
-.form-row .field-label {
-  display: block;
-  margin-bottom: 4px;
-}
-
-/* ---------- ボタン ---------- */
-/* Primary: 青背景・白文字。Secondary: 白背景・薄いborder。危険操作: 赤。
-   黄色はブランドアクセント（badge等）として限定利用し、ボタン全面色としては使わない。 */
-
-button {
-  display: inline-block;
-  font-size: 14px;
+.card h2 {
+  font-size: 16px;
   font-weight: 600;
-  padding: 12px 18px;
-  min-height: 44px;
-  border-radius: 10px;
-  border: none;
-  background: var(--blue);
-  color: #fff;
-  cursor: pointer;
-  margin-top: 10px;
-  transition: opacity 0.15s ease, transform 0.05s ease;
+  margin: 0 0 6px;
 }
 
-/* 「button { display: inline-block }」はCSSカスケード上、UAスタイルシートの
-   [hidden]{display:none}（通常のuser-agent origin）より優先されてしまうため、
-   .hidden = true を設定してもボタンだけは表示され続けてしまう
-   （ログイン画面でログアウトボタンが表示されたまま、というバグの実際の原因）。
-   authorスタイルとしてこのルールを明示することで、hidden属性を確実に効かせる */
-button[hidden] {
-  display: none;
-}
-
-button:hover {
-  opacity: 0.92;
-}
-
-button:active {
-  transform: scale(0.99);
-}
-
-button:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-button.secondary {
-  background: #fff;
-  color: var(--text);
-  border: 1px solid var(--border);
-}
-
-button.danger {
-  background: #fff;
-  color: var(--danger);
-  border: 1px solid var(--border);
-}
-
-button.btn-block {
-  display: block;
-  width: 100%;
-  text-align: center;
-}
-
-button.btn-inline {
-  margin-top: 0;
-}
-
-.link-btn {
-  background: none;
-  border: none;
-  color: var(--blue);
-  font-size: 13px;
-  font-weight: 600;
-  padding: 6px 2px;
-  margin-top: 0;
-  cursor: pointer;
-  text-align: left;
-}
-
-.link-btn:hover {
-  text-decoration: underline;
-  opacity: 1;
-}
-
-.field-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  padding: 7px 0;
+.card p {
+  margin: 0;
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
-.field-row .field-label {
-  color: var(--text-secondary);
-  font-size: 13px;
-  flex-shrink: 0;
+.card p + p {
+  margin-top: 12px;
 }
 
-.field-row .value {
-  font-weight: 600;
-  min-width: 0;
-  text-align: right;
-}
-
-.invite-code-row {
+.link-list {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 6px 0 4px;
+  flex-direction: column;
+  gap: 12px;
+  margin: 32px 0;
 }
 
-.invite-code-row code {
-  flex: 1;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  color: var(--blue-dark);
-  background: var(--blue-soft);
+.link-list a {
+  display: block;
+  padding: 16px 20px;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px 14px;
-  text-align: center;
+  border-radius: 12px;
+  text-decoration: none;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 500;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-.status-msg {
+.link-list a:hover,
+.link-list a:focus-visible {
+  border-color: var(--accent);
+  background: var(--bg-subtle);
+}
+
+.link-list a span.desc {
+  display: block;
+  margin-top: 4px;
   font-size: 13px;
-  min-height: 18px;
-  margin-top: 8px;
-}
-
-/* 通信中の共通ローディング表示（画面全体はブロックしない、小さなspinner＋テキスト） */
-.spinner {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  margin-right: 6px;
-  vertical-align: -2px;
-  border: 2px solid var(--border);
-  border-top-color: var(--blue);
-  border-radius: 50%;
-  animation: team-web-spin 0.7s linear infinite;
-}
-
-@keyframes team-web-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: 28px;
-  transform: translateX(-50%);
-  background: #1c1c1e;
-  color: #fff;
-  font-size: 13px;
-  padding: 10px 18px;
-  border-radius: 20px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-  z-index: 100;
-}
-
-.toast[hidden] {
-  display: none;
-}
-
-/* ---------- badge / pill ---------- */
-
-.badge-pill {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  background: var(--blue-soft);
-  color: var(--blue-dark);
-  white-space: nowrap;
-}
-
-.badge-pill.badge-yellow {
-  background: var(--yellow-soft);
-  color: #8a6412;
-}
-
-.badge-pill.badge-gray {
-  background: #f1f2f5;
+  font-weight: 400;
   color: var(--text-secondary);
 }
 
-.badge-pill[hidden] {
-  display: none;
-}
-
-/* ---------- 認証系画面（ログイン・signup・reset・gate等）共通シェル ---------- */
-
-.auth-view {
-  display: flex;
-  min-height: calc(100vh - 60px);
-  align-items: center;
-  justify-content: center;
-  padding: 24px 0 60px;
-}
-
-.auth-shell {
-  width: 100%;
-  max-width: 400px;
-}
-
-.auth-brand {
-  text-align: center;
-  margin-bottom: 22px;
-}
-
-.auth-brand-main {
-  display: block;
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--text);
-  letter-spacing: -0.01em;
-}
-
-.auth-brand-sub {
-  display: block;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--blue);
-  letter-spacing: 0.08em;
-  margin-top: 2px;
-}
-
-.auth-card-title {
-  font-size: 17px;
-  font-weight: 700;
+#contact-block p {
   margin: 0 0 8px;
-}
-
-.auth-links {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  margin-top: 8px;
-}
-
-.loading-card {
-  text-align: center;
-}
-
-.gate-card {
-  text-align: center;
-}
-
-.gate-icon {
-  font-size: 32px;
-  margin-bottom: 6px;
-}
-
-.gate-message {
-  font-size: 14px;
-  color: var(--text);
-  margin: 0;
-}
-
-/* ---------- 所属選手一覧 / データテーブル共通 ---------- */
-
-.table-scroll {
-  overflow-x: auto;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.data-table th {
-  text-align: left;
-  padding: 8px 10px;
-  color: var(--text-secondary);
-  font-weight: 600;
-  font-size: 12px;
-  border-bottom: 1px solid var(--border);
-  white-space: nowrap;
-}
-
-.data-table td {
-  padding: 10px;
-  border-bottom: 1px solid var(--border);
-  white-space: nowrap;
-}
-
-.data-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.data-table.row-clickable tbody tr {
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-
-.data-table.row-clickable tbody tr:hover {
-  background: var(--blue-soft);
-}
-
-.data-table .member-name-cell {
-  font-weight: 700;
-}
-
-.data-table .cell-muted {
+  font-size: 15px;
   color: var(--text-secondary);
 }
 
-.data-table .detail-link {
-  color: var(--blue);
-  font-weight: 600;
-  font-size: 12px;
+#contact-block a {
+  color: var(--accent);
+  text-decoration: none;
 }
 
-/* ---------- 選手詳細（中央モーダル） ---------- */
-
-.overlay-backdrop {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(17, 24, 39, 0.3);
-  z-index: 40;
+#contact-block a:hover,
+#contact-block a:focus-visible {
+  text-decoration: underline;
 }
 
-.overlay-backdrop:not([hidden]) {
-  display: block;
-}
-
-.modal {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 440px;
-  max-width: 92vw;
-  max-height: 86vh;
-  overflow-y: auto;
-  z-index: 50;
-  margin: 0;
-  box-shadow: 0 20px 60px rgba(17, 24, 39, 0.25);
-}
-
-/* 選手詳細・Treatment詳細・IL詳細は情報量が多く440pxだと縦に間延びするため、
-   desktopだけ少し広くする（mobileはmax-width:92vwのまま変わらない） */
-.modal-wide {
-  width: 600px;
-}
-
-.modal-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.modal-header h2 {
-  font-size: 17px;
-  font-weight: 700;
-  margin: 0 0 4px;
-}
-
-.modal-divider {
-  border: none;
+footer.site-footer {
+  margin-top: 64px;
+  padding-top: 24px;
   border-top: 1px solid var(--border);
-  margin: 14px 0;
-}
-
-.value.monospace {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
-  word-break: break-all;
-  text-align: right;
-}
-
-.detail-section-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin: 20px 0 8px;
-}
-
-.detail-section-title:first-of-type {
-  margin-top: 4px;
-}
-
-/* ---------- 選手詳細：最新コンディションカード ---------- */
-
-.latest-condition-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px 14px;
-  margin-bottom: 14px;
-}
-
-/* 「display: grid」を明示している要素はUAスタイルシートの[hidden]{display:none}より
-   優先されてしまう（button[hidden]と同じカスケードの理由）。.hidden = trueにしても
-   グリッドが表示され続けないよう、authorスタイルとして明示しておく */
-.latest-condition-grid[hidden] {
-  display: none;
-}
-
-.latest-condition-date {
-  grid-column: 1 / -1;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--blue-dark);
-  margin-bottom: 2px;
-}
-
-.latest-condition-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-height: 38px;
-  justify-content: center;
-}
-
-.latest-condition-label {
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
-.latest-condition-value {
-  font-size: 15px;
-  font-weight: 700;
-}
-
-/* ---------- 選手詳細：コンディション同期データ一覧（直近7日） ---------- */
-
-.condition-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 6px 0 12px;
-}
-
-.condition-list-row {
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-
-.condition-date {
-  font-size: 12px;
-  font-weight: 600;
-  margin-bottom: 2px;
-}
-
-.condition-detail {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-/* =====================================================================
-   ダッシュボード（アプリシェル）：サイドバー + トップバー + 各ページ
-   ===================================================================== */
-
-.app-shell-inner {
-  display: flex;
-  min-height: 100vh;
-}
-
-.team-sidebar {
-  width: 216px;
-  flex-shrink: 0;
-  background: #fff;
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  padding: 20px 14px;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-}
-
-.team-sidebar-brand {
-  padding: 4px 10px 22px;
-}
-
-.team-sidebar-brand .brand-main {
-  display: block;
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--text);
-}
-
-.team-sidebar-brand .brand-sub {
-  display: block;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--blue);
-  letter-spacing: 0.1em;
-}
-
-.team-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.team-nav-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  text-align: left;
-  background: none;
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 600;
-  border: none;
-  border-radius: 10px;
-  padding: 10px 12px;
-  margin-top: 0;
-  cursor: pointer;
-}
-
-.team-nav-item:hover {
-  background: var(--blue-soft);
-  opacity: 1;
-}
-
-.team-nav-item.active {
-  background: var(--blue-soft);
-  color: var(--blue-dark);
-}
-
-.team-nav-icon {
-  font-size: 13px;
-  width: 16px;
-  text-align: center;
-}
-
-.team-sidebar-footer {
-  margin-top: auto;
-  padding: 10px;
-}
-
-.team-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.team-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 28px;
-  border-bottom: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(6px);
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
-
-.team-topbar-title {
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.team-topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.team-topbar-teamname {
-  font-size: 13px;
-  color: var(--text-secondary);
-  font-weight: 600;
-}
-
-.avatar-circle {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--blue);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.team-content {
-  padding: 24px 28px 60px;
-  max-width: 1200px;
-  width: 100%;
-  margin: 0 auto;
-}
-
-.team-page[hidden] {
-  display: none;
-}
-
-.page-heading {
-  font-size: 20px;
-  font-weight: 800;
-  margin: 0 0 16px;
-}
-
-.page-heading-sub {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin-left: 10px;
-}
-
-.page-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-}
-
-.page-header-row .page-heading {
-  margin-bottom: 0;
-}
-
-.search-input {
-  width: 220px;
-  max-width: 100%;
-}
-
-/* ---------- ホーム：統計カード ---------- */
-/* stat-grid/.stat-card/.stat-label等の定義はここ1箇所にまとめる（以前はicon追加時に
-   別ブロックへ上書きを追加していたため、同じセレクタが2箇所に分かれていた）。
-   labelは必ず1行（所属選手/共有中/入力済み/未入力/IL登録中/トリートメント）である前提で、
-   2行対応のmin-height/flex-end等の調整は不要にした */
-
-.stat-group .stat-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 14px;
-  margin-bottom: 0;
-}
-
-.stat-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  padding: 16px 12px;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  /* 6枚すべてを同じ高さに揃える（icon 32px + padding 32px + label 1行 + gap 2px + value 1行）。
-     3グループはそれぞれ別のgrid（.stat-group単位）のため、grid行のstretchだけでは
-     グループ間の高さが揃わない。この固定値で揃える */
-  height: 80px;
-}
-
-.stat-icon {
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  border-radius: 10px;
-  background: var(--blue-soft);
-  color: var(--blue-dark);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.stat-card-body {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-  min-width: 0;
-  height: 100%;
-}
-
-.stat-label {
-  font-size: 11px;
-  color: var(--text-secondary);
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.stat-value {
-  font-size: 26px;
-  font-weight: 800;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* =====================================================================
-   選手・コンディション：疲労度／睡眠／本日入力バッジ
-   （ホームの選手コンディション表・選手一覧テーブルの両方で共通利用する）
-   ===================================================================== */
-
-.fatigue-cell,
-.sleep-cell {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-.fatigue-number {
-  font-weight: 700;
-}
-
-/* 疲労度：1〜3=低め（青）／4〜6=中程度（黄）／7〜10=高め（赤・警告色として限定使用）。
-   医療的な断定表現は避け、あくまで目安の色分けにとどめる */
-.badge-pill.fatigue-badge-low {
-  background: var(--blue-soft);
-  color: var(--blue-dark);
-}
-
-.badge-pill.fatigue-badge-mid {
-  background: var(--yellow-soft);
-  color: #8a6412;
-}
-
-.badge-pill.fatigue-badge-high {
-  background: #fde3e1;
-  color: var(--danger);
-}
-
-/* 睡眠：6時間未満の場合だけ「短め」の控えめなbadgeを添える（断定的な健康判断はしない） */
-.badge-pill.sleep-short-badge {
-  background: var(--yellow-soft);
-  color: #8a6412;
-}
-
-/* 本日の入力状態：入力済みは緑系、未入力はグレー系（共有OFFもグレー系で視覚的にまとめる） */
-.badge-pill.badge-today-done {
-  background: #e3f5e6;
-  color: var(--success);
-}
-
-/* ---------- 選手一覧：フィルタ（すべて／未入力／入力済み／共有ON） ---------- */
-
-.filter-toggle {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 14px;
-}
-
-.filter-toggle-btn {
-  background: #fff;
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-  font-size: 12px;
-  font-weight: 600;
-  padding: 7px 14px;
-  border-radius: 999px;
-  margin-top: 0;
-  cursor: pointer;
-}
-
-.filter-toggle-btn:hover {
-  opacity: 1;
-  border-color: var(--blue);
-}
-
-.filter-toggle-btn.active {
-  background: var(--blue);
-  color: #fff;
-  border-color: var(--blue);
-}
-
-/* ---------- 選手詳細：直近7日サマリー ---------- */
-
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.summary-item {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 8px 10px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-  min-height: 54px;
-}
-
-.summary-label {
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
-.summary-value {
-  font-size: 15px;
-  font-weight: 700;
-}
-
-/* ---------- 選手詳細：推移グラフ（疲労度／睡眠／体重タブ） ---------- */
-
-.chart-tabs {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-
-.chart-tab-btn {
-  background: #fff;
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-  font-size: 12px;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 999px;
-  margin-top: 0;
-  cursor: pointer;
-}
-
-.chart-tab-btn.active {
-  background: var(--blue-soft);
-  color: var(--blue-dark);
-  border-color: var(--blue-soft);
-}
-
-.mini-chart-wrap {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 10px 12px 6px;
-  margin-bottom: 16px;
-}
-
-.mini-chart-svg {
-  width: 100%;
-  height: 120px;
-  display: block;
-}
-
-.mini-chart-line {
-  stroke: var(--blue);
-  stroke-width: 2;
-  fill: none;
-}
-
-.mini-chart-dot {
-  fill: var(--blue);
-}
-
-.mini-chart-labels {
-  display: flex;
+  gap: 16px;
   justify-content: space-between;
-  font-size: 10px;
-  color: var(--text-secondary);
-  margin-top: 4px;
-}
-
-/* =====================================================================
-   レスポンシブ
-   ===================================================================== */
-
-@media (max-width: 1280px) {
-  .team-content {
-    padding: 22px 22px 60px;
-  }
-}
-
-@media (max-width: 1024px) {
-  .team-sidebar {
-    width: 180px;
-  }
-  .team-content {
-    padding: 20px 18px 60px;
-  }
-}
-
-@media (max-width: 768px) {
-  .app-shell-inner {
-    flex-direction: column;
-    min-height: 0;
-  }
-
-  .team-sidebar {
-    position: static;
-    width: 100%;
-    height: auto;
-    flex-direction: row;
-    align-items: center;
-    padding: 10px 12px;
-    overflow-x: auto;
-    gap: 10px;
-  }
-
-  .team-sidebar-brand {
-    padding: 0 8px 0 0;
-    flex-shrink: 0;
-  }
-
-  .team-sidebar-brand .brand-sub {
-    display: none;
-  }
-
-  .team-nav {
-    flex-direction: row;
-    gap: 4px;
-  }
-
-  .team-nav-item {
-    flex-direction: column;
-    gap: 2px;
-    font-size: 11px;
-    padding: 8px 10px;
-    white-space: nowrap;
-  }
-
-  .team-sidebar-footer {
-    margin-top: 0;
-    margin-left: auto;
-    padding: 0 6px;
-    flex-shrink: 0;
-  }
-
-  .team-topbar {
-    padding: 12px 16px;
-  }
-
-  .team-topbar-teamname {
-    display: none;
-  }
-
-  .team-content {
-    padding: 16px 14px 50px;
-  }
-
-  .summary-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .page-header-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .search-input {
-    width: 100%;
-  }
-
-  .modal {
-    width: 94vw;
-  }
-
-  .latest-condition-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-/* ---------- トリートメント：人体図（外部ライブラリ不使用の簡易SVG） ---------- */
-
-.body-map-row {
-  display: flex;
-  gap: 24px;
-  flex-wrap: wrap;
-  margin: 12px 0 16px;
-}
-
-.body-map-col {
-  flex: 1 1 220px;
-  min-width: 220px;
-}
-
-.body-map-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.body-map-svg-wrap {
-  max-width: 240px;
-  margin: 0 auto;
-}
-
-.body-map-svg {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-.body-part {
-  fill: var(--blue-soft);
-  stroke: var(--blue);
-  stroke-width: 1.5;
-  cursor: pointer;
-  transition: fill 0.12s ease;
-}
-
-.body-part:hover {
-  fill: #d7ebff;
-}
-
-.body-part:focus-visible {
-  outline: 2px solid var(--blue-dark);
-  outline-offset: 2px;
-}
-
-.body-part.selected {
-  fill: var(--blue);
-  stroke: var(--blue-dark);
-}
-
-.selected-parts-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.selected-part-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.chip-remove {
-  background: none;
-  border: none;
-  color: inherit;
-  font-size: 14px;
-  line-height: 1;
-  padding: 0 0 0 4px;
-  cursor: pointer;
-  min-height: auto;
-}
-
-/* ---------- IL：復帰プロセス縦型timeline ---------- */
-
-.recovery-timeline {
-  margin: 8px 0 16px;
-}
-
-.timeline-row {
-  display: flex;
-  gap: 12px;
-  padding: 8px 0;
-  border-left: 2px solid var(--border);
-  margin-left: 11px;
-  padding-left: 16px;
-}
-
-.timeline-row:last-child {
-  border-left-color: transparent;
-}
-
-.timeline-marker {
-  flex-shrink: 0;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 2px solid var(--border);
-  background: var(--card-bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--success);
-  margin-left: -28px;
-}
-
-.timeline-row-done .timeline-marker {
-  border-color: var(--success);
-}
-
-.timeline-title {
-  font-weight: 700;
-  font-size: 14px;
-}
-
-.timeline-meta {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-top: 2px;
-}
-
-.timeline-notes {
-  font-size: 13px;
-  margin-top: 4px;
-  white-space: pre-wrap;
-}
-
-.timeline-toggle-btn {
-  margin-top: 6px;
-}
-
-@media (max-width: 480px) {
-  .body-map-row {
-    flex-direction: column;
-  }
-}
-
-/* ---------- トリートメント：通常画面の管理一覧（クリックで詳細modal） ---------- */
-
-.treatment-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 4px 0;
-}
-
-.treatment-list-row {
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  cursor: pointer;
-  transition: border-color 0.12s ease, background 0.12s ease;
-}
-
-.treatment-list-row:hover,
-.treatment-list-row:focus-visible {
-  border-color: var(--blue);
-  background: var(--blue-soft);
-  outline: none;
-}
-
-.treatment-list-header {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-bottom: 4px;
-}
-
-.treatment-list-date {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-secondary);
-}
-
-.treatment-list-name {
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.treatment-list-type {
   font-size: 13px;
   color: var(--text-secondary);
 }
 
-/* ---------- モーダル内：キャンセル／保存等を横並びにする汎用行 ---------- */
-
-.modal-action-row {
+footer.site-footer nav {
   display: flex;
-  gap: 10px;
-  margin-top: 8px;
-}
-
-.modal-action-row button {
-  flex: 1;
-}
-
-/* ---------- トリートメント詳細：表示専用の人体図（新規登録と同じSVGを複製） ---------- */
-
-.body-map-svg-wrap-readonly {
-  max-width: 170px;
-  margin: 0 auto 12px;
-}
-
-/* Treatment詳細：desktopでは左=人体図／右=詳細の2column、mobileでは縦stack。
-   人体図側は幅を固定して主役になりすぎないようにし、詳細側に幅を残す */
-.treatment-detail-columns {
-  display: flex;
-  gap: 20px;
-  align-items: flex-start;
-}
-
-.treatment-detail-col-map {
-  flex: 0 0 190px;
-}
-
-.treatment-detail-col-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.treatment-detail-col-info .modal-divider {
-  margin: 10px 0;
-}
-
-@media (max-width: 640px) {
-  .treatment-detail-columns {
-    flex-direction: column;
-  }
-
-  .treatment-detail-col-map {
-    flex-basis: auto;
-    width: 100%;
-  }
-}
-
-.body-map-svg-readonly .body-part {
-  cursor: default;
-  pointer-events: none;
-}
-
-/* =====================================================================
-   UI仕上げフェーズ：共通inline SVGアイコン・sidebar/topbar/カード等の質感改善
-   （機能追加なし。既存のDOM構造・id・イベントハンドラは変更していない）
-   ===================================================================== */
-
-/* ---------- 共通icon class ---------- */
-/* symbol内部にはfill/strokeを持たせず、ここで一括指定する。
-   pointer-events:noneでアイコンがクリックを奪わないようにする（本来のbutton/row操作を妨げない） */
-.icon {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  pointer-events: none;
-  vertical-align: -3px;
-}
-
-/* ---------- focus-visible（既存ARIAは変更せず、視認性だけ強化） ---------- */
-button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible,
-.team-nav-item:focus-visible,
-.filter-toggle-btn:focus-visible {
-  outline: 2px solid var(--blue-dark);
-  outline-offset: 2px;
-}
-
-/* ---------- badge：控えめな追加色（IL statusの色分け用） ---------- */
-.badge-pill.badge-teal {
-  background: #e6f7f4;
-  color: #0f7a68;
-}
-
-.badge-pill.badge-green {
-  background: #eaf7ec;
-  color: var(--success);
-}
-
-.badge-pill.badge-subtle {
-  background: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-  font-weight: 600;
-}
-
-/* ---------- sidebar：アイコン・active強調・ブランド質感 ---------- */
-
-.team-sidebar-brand .brand-main {
-  letter-spacing: -0.01em;
-}
-
-.team-nav-item {
-  position: relative;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.team-nav-item .icon {
-  color: var(--text-secondary);
-  transition: color 0.15s ease;
-}
-
-.team-nav-item:hover .icon {
-  color: var(--blue-dark);
-}
-
-.team-nav-item.active {
-  font-weight: 700;
-}
-
-.team-nav-item.active .icon {
-  color: var(--blue-dark);
-}
-
-/* 左側の細いBlueアクセント。paddingは変えずbox-shadowの内側インセットで表現し、
-   レイアウト幅に影響を与えない */
-.team-nav-item.active::before {
-  content: "";
-  position: absolute;
-  left: -14px;
-  top: 8px;
-  bottom: 8px;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
-  background: var(--blue);
-}
-
-.team-nav-icon {
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* ---------- topbar：baseline調整 ---------- */
-
-.team-topbar-title {
-  font-weight: 800;
-  letter-spacing: -0.01em;
-}
-
-.team-topbar-right {
-  min-height: 30px;
-}
-
-/* ---------- テーブル：見出し・行hoverの統一（クリック不可の表も含める） ---------- */
-
-.data-table th {
-  font-weight: 700;
-  background: var(--bg);
-}
-
-.data-table tbody tr {
-  transition: background 0.12s ease;
-}
-
-.data-table tbody tr:hover {
-  background: var(--blue-soft);
-}
-
-/* ---------- 選手一覧：頭文字avatar ---------- */
-
-.member-name-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.avatar-circle-sm {
-  width: 30px;
-  height: 30px;
-  font-size: 12px;
-  background: var(--blue-soft);
-  color: var(--blue-dark);
-  flex-shrink: 0;
-}
-
-/* ---------- トリートメント：選択部位pill ---------- */
-
-.treatment-list-parts {
-  display: flex;
+  gap: 16px;
   flex-wrap: wrap;
-  gap: 4px;
-  margin-bottom: 4px;
 }
 
-.part-pill {
-  height: auto;
-  padding: 2px 9px;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-/* ---------- アカウント：ログアウトのdanger area ---------- */
-
-.danger-area {
-  margin-top: 24px;
-  border-color: #f3d9d7;
-  background: #fffaf9;
-}
-
-/* ---------- ボタン：icon付きテキストボタン ---------- */
-
-.btn-icon-text {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-/* ---------- Responsive：sidebar mobile時のicon整列 ---------- */
-
-@media (max-width: 768px) {
-  .team-nav-item.active::before {
-    left: 0;
-    top: auto;
-    bottom: -10px;
-    width: 60%;
-    height: 3px;
-    margin: 0 20%;
-  }
-
-  .icon {
-    width: 16px;
-    height: 16px;
-  }
-}
-
-/* =====================================================================
-   UI第二段階：情報の見せ方改善（機能追加なし。データ取得・保存ロジックは無変更）
-   ===================================================================== */
-
-/* ---------- ホーム：今日の状況（既存stat値の要約表示のみ、新規取得なし） ---------- */
-
-/* 「大きなカード」ではなく軽いsummary barとして見せる：stat cardより低い高さ・
-   小さめのradius・薄いshadowにして、下のstat-grid（詳細な内訳）と情報の強弱を分ける */
-.today-overview {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 20px;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: none;
-  padding: 10px 18px;
-  margin-bottom: 20px;
-}
-
-.today-overview-item {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-.today-overview-label {
-  font-size: 12px;
+footer.site-footer a {
   color: var(--text-secondary);
-  font-weight: 600;
+  text-decoration: none;
 }
 
-.today-overview-value {
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--text);
-}
-
-.today-overview-sep {
-  width: 1px;
-  height: 16px;
-  background: var(--border);
-}
-
-/* ---------- ホーム：stat cardのグルーピング ---------- */
-
-.stat-groups {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
-.stat-group-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin: 0 0 8px 2px;
-}
-
-/* ---------- 共通empty state（Treatment/IL/選手一覧/InBody OFF等で統一） ---------- */
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 36px 16px;
-  gap: 6px;
-}
-
-/* .card等と同じ理由：display:flexを明示している要素は[hidden]{display:none}より
-   優先されてしまうため、authorスタイルとして明示しておく */
-.empty-state[hidden] {
-  display: none;
-}
-
-.empty-state-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: var(--bg);
-  color: var(--text-secondary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 4px;
-}
-
-.empty-state-icon .icon {
-  width: 22px;
-  height: 22px;
-}
-
-.empty-state-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text);
-  margin: 0;
-}
-
-.empty-state-desc {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin: 0;
-  max-width: 320px;
-}
-
-/* modal内の1セクション分だけを占めるempty state（選手詳細のコンディション/InBody等）は、
-   ページ全体のempty state（履歴なし/ILなし等）より余白を抑える */
-.empty-state-compact {
-  padding: 20px 12px;
-}
-
-.empty-state-compact .empty-state-icon {
-  width: 36px;
-  height: 36px;
-  margin-bottom: 2px;
-}
-
-.empty-state-compact .empty-state-icon .icon {
-  width: 18px;
-  height: 18px;
-}
-
-/* ---------- 選手詳細modal：header（avatar付き）・section説明文 ---------- */
-
-.modal-header-identity {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.detail-section-desc {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin: -4px 0 10px;
-}
-
-/* InBody：主要指標（体重/骨格筋量/体脂肪率/InBody Score）を先に強調し、
-   BMI/基礎代謝量は同じgrid内でも一段控えめな表示にする */
-.latest-condition-item-secondary .latest-condition-value {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-/* ---------- Treatment詳細modal：上部（日付＋編集）・secondary情報 ---------- */
-
-.modal-top-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 4px;
-}
-
-.modal-top-date {
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.value-secondary {
-  color: var(--text-secondary);
-  font-weight: 600;
-}
-
-/* ---------- Treatment履歴カード：フッター行（内容＋メモ有無＋chevron） ---------- */
-
-.treatment-list-footer {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: 2px;
-}
-
-.treatment-list-footer .treatment-list-type {
-  /* 内容は最大2行まで（それ以上は省略）。メモ全文は一覧に出さない方針は維持 */
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  min-width: 0;
-  flex: 1;
-}
-
-.treatment-list-trailing {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  color: var(--text-secondary);
-}
-
-.treatment-list-memo-note {
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.treatment-list-trailing .icon {
-  width: 16px;
-  height: 16px;
-}
-
-/* ---------- 選手一覧：詳細linkのchevron・IL inline badge ---------- */
-
-.detail-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.detail-link .icon {
-  width: 14px;
-  height: 14px;
-}
-
-.il-inline-badge {
-  margin-left: 6px;
-}
-
-/* ---------- IL：残り日数の色分け（Blue=通常 / Gray=未設定 / 控えめなRed=期限超過） ---------- */
-
-.badge-pill.badge-red-soft {
-  background: #fdeceb;
-  color: #b3453c;
-}
-
-.il-return-date-cell,
-.data-table .member-name-cell {
-  font-weight: 700;
-}
-
-.text-muted {
-  color: var(--text-secondary);
-}
-
-.text-blue {
-  color: var(--blue-dark);
-}
-
-.text-overdue {
-  color: #b3453c;
-}
-
-/* ---------- IL詳細modal：summary card ---------- */
-
-.il-summary-card {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px 16px;
-  margin-bottom: 14px;
-}
-
-.il-summary-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.il-summary-bodypart {
-  font-size: 15px;
-  font-weight: 800;
-}
-
-.il-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-
-.il-summary-item {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-  min-height: 38px;
-}
-
-/* ---------- Recovery timeline：現在stepをBlueで強調 ---------- */
-
-.timeline-row-current .timeline-marker {
-  border-color: var(--blue);
-  background: var(--blue-soft);
-}
-
-.timeline-row-current .timeline-title {
-  color: var(--blue-dark);
-}
-
-/* ---------- Responsive ---------- */
-/* 1280px以下では3列のまま維持すると1カードの幅が「トリートメント」ラベルの
-   自然な文字幅より狭くなり省略記号が出てしまうため、2列（3つ目のグループは
-   次の行に単独で入り、行の後半は空く）にして各カードの幅を確保する。
-   カード自体の横幅・高さは同じ行の2カードと変わらないため、サイズのズレにはならない。
-   実測：1050px幅で3列のままだと省略が発生することを確認済みのため、しきい値は
-   1024pxではなく余裕を持って1280pxにしている */
-@media (max-width: 1280px) {
-  .stat-groups {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 768px) {
-  .stat-groups {
-    grid-template-columns: 1fr;
-    gap: 14px;
-  }
-
-  .today-overview {
-    gap: 10px;
-    padding: 12px 14px;
-  }
-
-  .today-overview-sep {
-    display: none;
-  }
-
-  .il-summary-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-  }
-}
-
-@media (max-width: 480px) {
-  .today-overview-item {
-    flex: 1 1 45%;
-  }
-
-  .il-summary-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .il-summary-grid .il-summary-item:last-child {
-    grid-column: 1 / -1;
-  }
+footer.site-footer a:hover,
+footer.site-footer a:focus-visible {
+  color: var(--accent);
 }
