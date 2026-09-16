@@ -8,8 +8,8 @@
   <meta name="robots" content="noindex,nofollow" />
   <meta name="description" content="PocketNutritionist チーム管理" />
   <title>PocketNutritionist Team</title>
-  <!-- v=7: UI仕上げフェーズ（inline SVG icon・sidebar/topbar/カード等の質感改善） -->
-  <link rel="stylesheet" href="styles.css?v=7" />
+  <!-- v=8: UI第二段階（情報の見せ方改善：グルーピング・empty state統一・summary card等） -->
+  <link rel="stylesheet" href="styles.css?v=8" />
 </head>
 <body>
   <!-- 共通inline SVGアイコンsprite。外部アイコンライブラリ/CDNは使わず、この<symbol>群だけを
@@ -72,6 +72,9 @@
     </symbol>
     <symbol id="icon-check" viewBox="0 0 24 24">
       <path d="M5 12.5l4.5 4.5L19 7" />
+    </symbol>
+    <symbol id="icon-chevron-right" viewBox="0 0 24 24">
+      <path d="M9 5l7 7-7 7" />
     </symbol>
   </svg>
 
@@ -308,47 +311,88 @@
               <section class="team-page active" id="team-page-home">
                 <h1 class="page-heading" id="homeTeamName">-</h1>
 
-                <div class="stat-grid">
-                  <div class="stat-card">
-                    <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-players"></use></svg></span>
-                    <div class="stat-card-body">
-                      <span class="stat-label">所属選手</span>
-                      <span class="stat-value" id="statMemberCount">-</span>
+                <!-- 今日の状況：新しいデータ取得は行わず、下のstat-grid（renderHomeSummary/
+                     loadHomeExtraStats）が既に計算した値をそのまま短い要約として再利用する -->
+                <div class="today-overview" id="homeTodayOverview">
+                  <span class="today-overview-item">
+                    <span class="today-overview-label">今日の入力</span>
+                    <span class="today-overview-value" id="overviewInputText">- / -名</span>
+                  </span>
+                  <span class="today-overview-sep" aria-hidden="true"></span>
+                  <span class="today-overview-item">
+                    <span class="today-overview-label">未入力</span>
+                    <span class="today-overview-value" id="overviewNotInputText">-名</span>
+                  </span>
+                  <span class="today-overview-sep" aria-hidden="true"></span>
+                  <span class="today-overview-item">
+                    <span class="today-overview-label">IL</span>
+                    <span class="today-overview-value" id="overviewIlText">-名</span>
+                  </span>
+                  <span class="today-overview-sep" aria-hidden="true"></span>
+                  <span class="today-overview-item">
+                    <span class="today-overview-label">本日トリートメント</span>
+                    <span class="today-overview-value" id="overviewTreatmentText">-件</span>
+                  </span>
+                </div>
+
+                <div class="stat-groups">
+                  <div class="stat-group">
+                    <div class="stat-group-title">チーム状況</div>
+                    <div class="stat-grid">
+                      <div class="stat-card">
+                        <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-players"></use></svg></span>
+                        <div class="stat-card-body">
+                          <span class="stat-label">所属選手</span>
+                          <span class="stat-value" id="statMemberCount">-</span>
+                        </div>
+                      </div>
+                      <div class="stat-card">
+                        <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-share"></use></svg></span>
+                        <div class="stat-card-body">
+                          <span class="stat-label">コンディション共有中</span>
+                          <span class="stat-value" id="statSharedCount">-</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div class="stat-card">
-                    <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-share"></use></svg></span>
-                    <div class="stat-card-body">
-                      <span class="stat-label">コンディション共有中</span>
-                      <span class="stat-value" id="statSharedCount">-</span>
+
+                  <div class="stat-group">
+                    <div class="stat-group-title">本日の入力</div>
+                    <div class="stat-grid">
+                      <div class="stat-card">
+                        <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-check-circle"></use></svg></span>
+                        <div class="stat-card-body">
+                          <span class="stat-label">本日入力済み</span>
+                          <span class="stat-value" id="statTodayCount">-</span>
+                        </div>
+                      </div>
+                      <div class="stat-card">
+                        <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-clock"></use></svg></span>
+                        <div class="stat-card-body">
+                          <span class="stat-label">未入力</span>
+                          <span class="stat-value" id="statNotInputCount">-</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div class="stat-card">
-                    <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-check-circle"></use></svg></span>
-                    <div class="stat-card-body">
-                      <span class="stat-label">本日入力済み</span>
-                      <span class="stat-value" id="statTodayCount">-</span>
-                    </div>
-                  </div>
-                  <div class="stat-card">
-                    <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-clock"></use></svg></span>
-                    <div class="stat-card-body">
-                      <span class="stat-label">未入力</span>
-                      <span class="stat-value" id="statNotInputCount">-</span>
-                    </div>
-                  </div>
-                  <div class="stat-card">
-                    <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-il"></use></svg></span>
-                    <div class="stat-card-body">
-                      <span class="stat-label">IL登録中</span>
-                      <span class="stat-value" id="statIlCount">-</span>
-                    </div>
-                  </div>
-                  <div class="stat-card">
-                    <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-treatment"></use></svg></span>
-                    <div class="stat-card-body">
-                      <span class="stat-label">本日のトリートメント</span>
-                      <span class="stat-value" id="statTreatmentTodayCount">-</span>
+
+                  <div class="stat-group">
+                    <div class="stat-group-title">ケア・復帰</div>
+                    <div class="stat-grid">
+                      <div class="stat-card">
+                        <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-il"></use></svg></span>
+                        <div class="stat-card-body">
+                          <span class="stat-label">IL登録中</span>
+                          <span class="stat-value" id="statIlCount">-</span>
+                        </div>
+                      </div>
+                      <div class="stat-card">
+                        <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-treatment"></use></svg></span>
+                        <div class="stat-card-body">
+                          <span class="stat-label">本日のトリートメント</span>
+                          <span class="stat-value" id="statTreatmentTodayCount">-</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -392,9 +436,11 @@
                 </div>
                 <div class="card">
                   <div id="membersStatus" class="status-msg"></div>
-                  <p class="hint" id="membersEmptyHint" hidden>
-                    まだチームに参加している選手はいません。
-                  </p>
+                  <div class="empty-state" id="membersEmptyHint" hidden>
+                    <span class="empty-state-icon"><svg class="icon" aria-hidden="true"><use href="#icon-players"></use></svg></span>
+                    <p class="empty-state-title">選手はまだいません</p>
+                    <p class="empty-state-desc">招待コードで選手がチームに参加すると、ここに表示されます。</p>
+                  </div>
                   <p class="hint" id="playerSearchEmptyHint" hidden>該当する選手が見つかりません。</p>
                   <div class="table-scroll" id="membersTableWrap" hidden>
                     <table class="data-table row-clickable">
@@ -424,7 +470,11 @@
 
                 <div class="card">
                   <div id="treatmentHistoryStatus" class="status-msg" hidden></div>
-                  <p class="hint" id="treatmentHistoryEmptyHint" hidden>トリートメント記録はまだありません。</p>
+                  <div class="empty-state" id="treatmentHistoryEmptyHint" hidden>
+                    <span class="empty-state-icon"><svg class="icon" aria-hidden="true"><use href="#icon-treatment"></use></svg></span>
+                    <p class="empty-state-title">トリートメント記録はありません</p>
+                    <p class="empty-state-desc">新規登録するとここに表示されます。</p>
+                  </div>
                   <div id="treatmentHistoryList" class="treatment-list"></div>
                 </div>
               </section>
@@ -437,17 +487,22 @@
                 </div>
                 <div class="card">
                   <div id="ilListStatus" class="status-msg"></div>
-                  <p class="hint" id="ilListEmptyHint" hidden>現在IL登録されている選手はいません。</p>
+                  <div class="empty-state" id="ilListEmptyHint" hidden>
+                    <span class="empty-state-icon"><svg class="icon" aria-hidden="true"><use href="#icon-il"></use></svg></span>
+                    <p class="empty-state-title">IL登録されている選手はいません</p>
+                    <p class="empty-state-desc">新規登録するとここに表示されます。</p>
+                  </div>
                   <div class="table-scroll" id="ilTableWrap" hidden>
                     <table class="data-table row-clickable">
                       <thead>
                         <tr>
                           <th>選手名</th>
+                          <th>ステータス</th>
+                          <th>部位</th>
                           <th>IL開始日</th>
                           <th>復帰予定日</th>
                           <th>残り日数</th>
                           <th>現在フェーズ</th>
-                          <th>ステータス</th>
                           <th></th>
                         </tr>
                       </thead>
@@ -547,13 +602,17 @@
     <div class="overlay-backdrop" id="memberDetailBackdrop" hidden></div>
     <div class="card modal" id="memberDetailPanel" hidden role="dialog" aria-modal="true" aria-labelledby="memberDetailName">
       <div class="modal-header">
-        <div>
-          <h2 id="memberDetailName">-</h2>
-          <span class="badge-pill" id="memberDetailConditionBadge">-</span>
+        <div class="modal-header-identity">
+          <span class="avatar-circle avatar-circle-sm" id="memberDetailAvatar" aria-hidden="true">-</span>
+          <div>
+            <h2 id="memberDetailName">-</h2>
+            <span class="badge-pill" id="memberDetailConditionBadge">-</span>
+          </div>
         </div>
         <button id="closeMemberDetailBtn" class="secondary" type="button">閉じる</button>
       </div>
 
+      <div class="detail-section-title detail-section-title-first">選手基本情報</div>
       <div class="field-row">
         <span class="field-label">user_id</span>
         <span id="memberDetailUserId" class="value monospace"></span>
@@ -573,7 +632,7 @@
 
       <hr class="modal-divider" />
 
-      <div class="detail-section-title">最新コンディション</div>
+      <div class="detail-section-title">今日のコンディション</div>
       <p class="hint" id="memberDetailLatestEmpty" hidden>まだ同期されたデータがありません。</p>
       <div class="latest-condition-grid" id="memberDetailLatestCard" hidden>
         <div class="latest-condition-date" id="memberDetailLatestDate"></div>
@@ -605,7 +664,8 @@
 
       <!-- 直近7日データが2件以上ある場合だけ表示する（既存の7日分取得結果を再利用。追加通信なし） -->
       <div id="memberDetailSummaryArea" hidden>
-        <div class="detail-section-title">直近7日サマリー</div>
+        <div class="detail-section-title">7日傾向</div>
+        <p class="detail-section-desc">直近7日間の入力状況とグラフ</p>
         <div class="summary-grid">
           <div class="summary-item">
             <span class="summary-label">入力回数</span>
@@ -633,14 +693,19 @@
         <div class="mini-chart-wrap" id="miniChartWrap"></div>
       </div>
 
-      <div class="detail-section-title">直近7日</div>
+      <div class="detail-section-title">記録一覧（直近7日）</div>
       <div id="memberDetailConditionStatus" class="status-msg"></div>
       <div id="memberDetailConditionList" class="condition-list"></div>
 
       <hr class="modal-divider" />
 
       <div class="detail-section-title">InBody</div>
-      <p class="hint" id="memberDetailInBodyEmpty" hidden>まだ同期されたデータがありません。</p>
+      <p class="detail-section-desc">身体組成の主要指標（最新測定値）</p>
+      <div class="empty-state" id="memberDetailInBodyEmpty" hidden>
+        <span class="empty-state-icon"><svg class="icon" aria-hidden="true"><use href="#icon-account"></use></svg></span>
+        <p class="empty-state-title" id="memberDetailInBodyEmptyTitle">まだ同期されたデータがありません</p>
+        <p class="empty-state-desc" id="memberDetailInBodyEmptyDesc">選手がInBody共有をONにすると、ここに表示されます。</p>
+      </div>
       <div class="latest-condition-grid" id="memberDetailInBodyLatestCard" hidden>
         <div class="latest-condition-date" id="memberDetailInBodyLatestDate"></div>
         <div class="latest-condition-item">
@@ -656,14 +721,14 @@
           <span class="latest-condition-value" id="memberDetailInBodyFatPercent">-</span>
         </div>
         <div class="latest-condition-item">
-          <span class="latest-condition-label">BMI</span>
-          <span class="latest-condition-value" id="memberDetailInBodyBmi">-</span>
-        </div>
-        <div class="latest-condition-item">
           <span class="latest-condition-label">InBody点数</span>
           <span class="latest-condition-value" id="memberDetailInBodyScore">-</span>
         </div>
-        <div class="latest-condition-item">
+        <div class="latest-condition-item latest-condition-item-secondary">
+          <span class="latest-condition-label">BMI</span>
+          <span class="latest-condition-value" id="memberDetailInBodyBmi">-</span>
+        </div>
+        <div class="latest-condition-item latest-condition-item-secondary">
           <span class="latest-condition-label">基礎代謝量</span>
           <span class="latest-condition-value" id="memberDetailInBodyBmr">-</span>
         </div>
@@ -732,6 +797,13 @@
         <button id="closeTreatmentDetailModalBtn" class="secondary" type="button">閉じる</button>
       </div>
 
+      <div class="modal-top-row">
+        <span class="modal-top-date" id="treatmentDetailDate">-</span>
+        <button id="editTreatmentBtn" class="secondary btn-inline" type="button">編集</button>
+      </div>
+
+      <hr class="modal-divider" />
+
       <!-- 表示専用の人体図。新規登録と同じSVG（buildBodyMapSvg）を複製して使う（作り直さない）。
            クリックでの部位変更はできない（tabindex/roleを外し、pointer-eventsも無効化） -->
       <div class="body-map-tabs" id="treatmentDetailBodyMapTabs">
@@ -740,15 +812,10 @@
       </div>
       <div id="treatmentDetailBodyMapFront" class="body-map-svg-wrap body-map-svg-wrap-readonly"></div>
       <div id="treatmentDetailBodyMapBack" class="body-map-svg-wrap body-map-svg-wrap-readonly" hidden></div>
+      <div class="selected-parts-list" id="treatmentDetailBodyParts"></div>
 
-      <div class="field-row">
-        <span class="field-label">日付</span>
-        <span id="treatmentDetailDate" class="value">-</span>
-      </div>
-      <div class="field-row">
-        <span class="field-label">部位</span>
-        <span id="treatmentDetailBodyParts" class="value">-</span>
-      </div>
+      <hr class="modal-divider" />
+
       <div class="field-row">
         <span class="field-label">トリートメント内容</span>
         <span id="treatmentDetailType" class="value">-</span>
@@ -757,16 +824,17 @@
         <span class="field-label">メモ</span>
         <span id="treatmentDetailNotes" class="value">-</span>
       </div>
+
+      <hr class="modal-divider" />
+
       <div class="field-row">
         <span class="field-label">記録者</span>
-        <span id="treatmentDetailRecordedBy" class="value">-</span>
+        <span id="treatmentDetailRecordedBy" class="value value-secondary">-</span>
       </div>
       <div class="field-row">
         <span class="field-label">登録日時</span>
-        <span id="treatmentDetailCreatedAt" class="value">-</span>
+        <span id="treatmentDetailCreatedAt" class="value value-secondary">-</span>
       </div>
-
-      <button id="editTreatmentBtn" class="btn-block" type="button">編集</button>
     </div>
 
     <!-- ================= IL新規登録（modal） ================= -->
@@ -808,28 +876,35 @@
     <div class="overlay-backdrop" id="ilDetailModalBackdrop" hidden></div>
     <div class="card modal" id="ilDetailModalPanel" hidden role="dialog" aria-modal="true" aria-labelledby="ilDetailMemberName">
       <div class="modal-header">
-        <div>
-          <h2 id="ilDetailMemberName">-</h2>
-          <span class="badge-pill" id="ilDetailStatusBadge">-</span>
-        </div>
+        <h2 id="ilDetailMemberName">-</h2>
         <button id="closeIlDetailModalBtn" class="secondary" type="button">閉じる</button>
       </div>
 
-      <div class="field-row">
-        <span class="field-label">部位</span>
-        <span id="ilDetailBodyPart" class="value">-</span>
+      <!-- Summary card：選手・部位・statusとIL開始/復帰予定/あと○日を最初に一目で把握できるようにする -->
+      <div class="il-summary-card">
+        <div class="il-summary-top">
+          <span id="ilDetailBodyPart" class="il-summary-bodypart">-</span>
+          <span class="badge-pill" id="ilDetailStatusBadge">-</span>
+        </div>
+        <div class="il-summary-grid">
+          <div class="il-summary-item">
+            <span class="latest-condition-label">IL開始</span>
+            <span class="latest-condition-value" id="ilDetailStartDate">-</span>
+          </div>
+          <div class="il-summary-item">
+            <span class="latest-condition-label">復帰予定</span>
+            <span class="latest-condition-value" id="ilDetailReturnDateValue">-</span>
+          </div>
+          <div class="il-summary-item">
+            <span class="latest-condition-label">あと</span>
+            <span class="latest-condition-value" id="ilDetailDaysRemaining">-</span>
+          </div>
+        </div>
       </div>
+
       <div class="field-row">
         <span class="field-label">内容</span>
         <span id="ilDetailDescription" class="value">-</span>
-      </div>
-      <div class="field-row">
-        <span class="field-label">IL開始日</span>
-        <span id="ilDetailStartDate" class="value">-</span>
-      </div>
-      <div class="field-row">
-        <span class="field-label">復帰予定まで</span>
-        <span id="ilDetailDaysRemaining" class="value">-</span>
       </div>
       <div class="field-row">
         <span class="field-label">メモ</span>
@@ -879,6 +954,6 @@
   <!-- app.jsはこれまでバージョンクエリを付けていなかったため、GitHub Pages/ブラウザに
        古いapp.jsがキャッシュされたまま残る可能性があった。styles.cssと同じ方式で
        クエリを付け、コード変更時は必ずこの数値を上げる（v=1から開始） -->
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>

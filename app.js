@@ -1257,22 +1257,28 @@ function avatarInitial(name) {
   return trimmed ? trimmed.charAt(0).toUpperCase() : "?";
 }
 
+// avatar（頭文字の丸）＋氏名のセットを一貫した見た目で使い回すための共通ビルダー。
+// 選手一覧・ホームのコンディション表・IL一覧など、選手名を出す場所はすべてこれを使う
+function buildAvatarNameWrap(displayName) {
+  const wrap = document.createElement("div");
+  wrap.className = "member-name-wrap";
+  const avatar = document.createElement("span");
+  avatar.className = "avatar-circle avatar-circle-sm";
+  avatar.setAttribute("aria-hidden", "true");
+  avatar.textContent = avatarInitial(displayName);
+  wrap.appendChild(avatar);
+  const nameText = document.createElement("span");
+  nameText.textContent = displayName || "未設定";
+  wrap.appendChild(nameText);
+  return wrap;
+}
+
 function buildMemberRow(member) {
   const row = document.createElement("tr");
 
   const nameCell = document.createElement("td");
   nameCell.className = "member-name-cell";
-  const nameWrap = document.createElement("div");
-  nameWrap.className = "member-name-wrap";
-  const avatar = document.createElement("span");
-  avatar.className = "avatar-circle avatar-circle-sm";
-  avatar.setAttribute("aria-hidden", "true");
-  avatar.textContent = avatarInitial(member.displayName);
-  nameWrap.appendChild(avatar);
-  const nameText = document.createElement("span");
-  nameText.textContent = member.displayName || "未設定";
-  nameWrap.appendChild(nameText);
-  nameCell.appendChild(nameWrap);
+  nameCell.appendChild(buildAvatarNameWrap(member.displayName));
   row.appendChild(nameCell);
 
   const shareCell = document.createElement("td");
@@ -1280,6 +1286,17 @@ function buildMemberRow(member) {
   shareBadge.className = member.conditionShared ? "badge-pill" : "badge-pill badge-gray";
   shareBadge.textContent = member.conditionShared ? "共有ON" : "共有OFF";
   shareCell.appendChild(shareBadge);
+  // ILリストを既に取得済み（currentIlRecords）の場合だけ、現在IL中の選手に小さなbadgeを添える。
+  // 新しい取得は行わず、未取得（IL画面を開いていない）の場合は何も表示しない
+  const activeIlRecord = currentIlRecords.find(
+    (r) => r.member_user_id === member.userId && r.status !== "returned" && r.status !== "closed"
+  );
+  if (activeIlRecord) {
+    const ilBadge = document.createElement("span");
+    ilBadge.className = ilStatusBadgeClassName(activeIlRecord.status) + " il-inline-badge";
+    ilBadge.textContent = IL_STATUS_LABEL[activeIlRecord.status] || "IL";
+    shareCell.appendChild(ilBadge);
+  }
   row.appendChild(shareCell);
 
   const todayCell = document.createElement("td");
@@ -1304,7 +1321,7 @@ function buildMemberRow(member) {
   const detailCell = document.createElement("td");
   const detailLink = document.createElement("span");
   detailLink.className = "detail-link";
-  detailLink.textContent = "詳細";
+  detailLink.innerHTML = '詳細<svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg>';
   detailCell.appendChild(detailLink);
   row.appendChild(detailCell);
 
@@ -1402,6 +1419,10 @@ function renderHomeSummary(members) {
   document.getElementById("statTodayCount").textContent = `${todayCount} / ${shared.length}`;
   document.getElementById("statNotInputCount").textContent = `${notInputCount}人`;
 
+  // 今日の状況：上のstat値と同じ計算結果を短い要約として再利用するだけ（新しい取得はしない）
+  document.getElementById("overviewInputText").textContent = `${todayCount} / ${shared.length}名`;
+  document.getElementById("overviewNotInputText").textContent = `${notInputCount}名`;
+
   const statusEl = document.getElementById("homeConditionStatus");
   const emptyHint = document.getElementById("homeConditionEmptyHint");
   const tableWrap = document.getElementById("homeConditionTableWrap");
@@ -1430,7 +1451,7 @@ function renderHomeSummary(members) {
 
     const nameCell = document.createElement("td");
     nameCell.className = "member-name-cell";
-    nameCell.textContent = member.displayName || "未設定";
+    nameCell.appendChild(buildAvatarNameWrap(member.displayName));
     row.appendChild(nameCell);
 
     const todayCell = document.createElement("td");
@@ -1490,6 +1511,7 @@ function openMemberDetail(member) {
   currentDetailMember = member;
   memberDetailActionStatus.textContent = "";
   memberDetailName.textContent = member.displayName || "未設定";
+  document.getElementById("memberDetailAvatar").textContent = avatarInitial(member.displayName);
   memberDetailUserId.textContent = member.userId;
   memberDetailJoinedAt.textContent = member.joinedAt
     ? new Date(member.joinedAt).toLocaleDateString("ja-JP")
@@ -1815,7 +1837,9 @@ async function loadMemberInBodyShares(member) {
 
   if (!member.inbodyShared) {
     statusEl.textContent = "";
-    appendHintTo("memberDetailInBodyHistoryList", "この選手はInBodyデータの共有をOFFにしています。");
+    document.getElementById("memberDetailInBodyEmptyTitle").textContent = "InBody共有OFF";
+    document.getElementById("memberDetailInBodyEmptyDesc").textContent =
+      "この選手はInBodyデータの共有をOFFにしています。";
     renderLatestInBodyCard(null);
     return;
   }
@@ -1837,7 +1861,9 @@ async function loadMemberInBodyShares(member) {
     statusEl.textContent = "";
     const rows = data || [];
     if (rows.length === 0) {
-      appendHintTo("memberDetailInBodyHistoryList", "まだ同期されたデータがありません。");
+      document.getElementById("memberDetailInBodyEmptyTitle").textContent = "まだ同期されたデータがありません";
+      document.getElementById("memberDetailInBodyEmptyDesc").textContent =
+        "選手がInBodyを記録すると、ここに表示されます。";
       renderLatestInBodyCard(null);
       return;
     }
@@ -1960,9 +1986,15 @@ async function loadHomeExtraStats(teamId) {
     ]);
     ilCountEl.textContent = ilResult.error ? "-" : `${ilResult.count ?? 0}人`;
     treatmentCountEl.textContent = treatmentResult.error ? "-" : `${treatmentResult.count ?? 0}件`;
+    // 今日の状況：同じ集計結果を要約テキストにも反映する（追加の取得は行わない）
+    document.getElementById("overviewIlText").textContent = ilResult.error ? "-" : `${ilResult.count ?? 0}名`;
+    document.getElementById("overviewTreatmentText").textContent =
+      treatmentResult.error ? "-" : `${treatmentResult.count ?? 0}件`;
   } catch (error) {
     ilCountEl.textContent = "-";
     treatmentCountEl.textContent = "-";
+    document.getElementById("overviewIlText").textContent = "-";
+    document.getElementById("overviewTreatmentText").textContent = "-";
   }
 }
 
@@ -2503,12 +2535,31 @@ function buildTreatmentListRow(row) {
     container.appendChild(partsEl);
   }
 
-  if (row.treatment_type) {
-    const typeEl = document.createElement("div");
-    typeEl.className = "treatment-list-type";
-    typeEl.textContent = row.treatment_type;
-    container.appendChild(typeEl);
+  // フッター行：内容（メモ全文は出さず有無だけ）＋右端chevron。カードをクリックできることが
+  // 自然に伝わるよう、詳細への遷移を示すchevronは常に表示する
+  const footer = document.createElement("div");
+  footer.className = "treatment-list-footer";
+
+  const typeEl = document.createElement("span");
+  typeEl.className = "treatment-list-type";
+  typeEl.textContent = row.treatment_type || "";
+  footer.appendChild(typeEl);
+
+  const trailing = document.createElement("span");
+  trailing.className = "treatment-list-trailing";
+  if (row.notes) {
+    const memoNote = document.createElement("span");
+    memoNote.className = "treatment-list-memo-note";
+    memoNote.textContent = "メモあり";
+    trailing.appendChild(memoNote);
   }
+  trailing.insertAdjacentHTML(
+    "beforeend",
+    '<svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg>'
+  );
+  footer.appendChild(trailing);
+
+  container.appendChild(footer);
 
   const openDetail = () => openTreatmentDetail(row);
   container.addEventListener("click", openDetail);
@@ -2545,7 +2596,21 @@ function openTreatmentDetail(row) {
   document.getElementById("treatmentDetailMemberName").textContent = memberDisplayName(row.member_user_id);
   document.getElementById("treatmentDetailDate").textContent = formatRecordDate(row.treatment_date);
   const parts = (row.body_parts || []).map((p) => BODY_PART_LABELS[p] || p);
-  document.getElementById("treatmentDetailBodyParts").textContent = parts.length > 0 ? parts.join("・") : "-";
+  const partsContainer = document.getElementById("treatmentDetailBodyParts");
+  partsContainer.textContent = "";
+  if (parts.length > 0) {
+    parts.forEach((label) => {
+      const pill = document.createElement("span");
+      pill.className = "badge-pill badge-gray part-pill";
+      pill.textContent = label;
+      partsContainer.appendChild(pill);
+    });
+  } else {
+    const hint = document.createElement("span");
+    hint.className = "hint";
+    hint.textContent = "部位の記録はありません";
+    partsContainer.appendChild(hint);
+  }
   document.getElementById("treatmentDetailType").textContent = row.treatment_type || "-";
   document.getElementById("treatmentDetailNotes").textContent = row.notes || "-";
   // 他の管理者の表示名/メールはRLS上team-webから取得できない（team_admins_select_selfは
@@ -2599,6 +2664,25 @@ function ilDaysRemainingText(expectedReturnDate) {
   return `${Math.abs(diffDays)}日経過`;
 }
 
+// 「あと○日」バッジの色：通常はBlue、予定日未設定はGray、期限超過時のみ控えめなRed
+// （--dangerの強い赤ではなく、専用の薄いred-softを使う。赤の多用を避ける方針）
+function ilRemainingBadgeClassName(expectedReturnDate) {
+  if (!expectedReturnDate) return "badge-pill badge-gray";
+  const today = new Date(todayDateString() + "T00:00:00");
+  const target = new Date(expectedReturnDate + "T00:00:00");
+  const diffDays = Math.round((target - today) / (1000 * 60 * 60 * 24));
+  return diffDays < 0 ? "badge-pill badge-red-soft" : "badge-pill";
+}
+
+// IL詳細summary card用（badgeではなくmetric値としての文字色。考え方はildRemainingBadgeと同じ）
+function ilRemainingTextClassName(expectedReturnDate) {
+  if (!expectedReturnDate) return "text-muted";
+  const today = new Date(todayDateString() + "T00:00:00");
+  const target = new Date(expectedReturnDate + "T00:00:00");
+  const diffDays = Math.round((target - today) / (1000 * 60 * 60 * 24));
+  return diffDays < 0 ? "text-overdue" : "text-blue";
+}
+
 let currentIlRecords = [];
 let currentIlDetailRecord = null;
 
@@ -2650,19 +2734,36 @@ async function loadIlList() {
 
       const nameCell = document.createElement("td");
       nameCell.className = "member-name-cell";
-      nameCell.textContent = memberDisplayName(record.member_user_id);
+      nameCell.appendChild(buildAvatarNameWrap(memberDisplayName(record.member_user_id)));
       row.appendChild(nameCell);
 
+      const statusCell = document.createElement("td");
+      const statusBadge = document.createElement("span");
+      statusBadge.className = ilStatusBadgeClassName(record.status);
+      statusBadge.textContent = IL_STATUS_LABEL[record.status] || record.status;
+      statusCell.appendChild(statusBadge);
+      row.appendChild(statusCell);
+
+      const bodyPartCell = document.createElement("td");
+      bodyPartCell.className = "cell-muted";
+      bodyPartCell.textContent = record.body_part || "-";
+      row.appendChild(bodyPartCell);
+
       const startCell = document.createElement("td");
+      startCell.className = "cell-muted";
       startCell.textContent = formatRecordDate(record.start_date);
       row.appendChild(startCell);
 
       const returnCell = document.createElement("td");
+      returnCell.className = "il-return-date-cell";
       returnCell.textContent = record.expected_return_date ? formatRecordDate(record.expected_return_date) : "-";
       row.appendChild(returnCell);
 
       const remainingCell = document.createElement("td");
-      remainingCell.textContent = ilDaysRemainingText(record.expected_return_date);
+      const remainingBadge = document.createElement("span");
+      remainingBadge.className = ilRemainingBadgeClassName(record.expected_return_date);
+      remainingBadge.textContent = ilDaysRemainingText(record.expected_return_date);
+      remainingCell.appendChild(remainingBadge);
       row.appendChild(remainingCell);
 
       const steps = stepsByRecordId.get(record.id) || [];
@@ -2672,17 +2773,10 @@ async function loadIlList() {
       phaseCell.textContent = currentStep ? currentStep.title : "-";
       row.appendChild(phaseCell);
 
-      const statusCell = document.createElement("td");
-      const statusBadge = document.createElement("span");
-      statusBadge.className = ilStatusBadgeClassName(record.status);
-      statusBadge.textContent = IL_STATUS_LABEL[record.status] || record.status;
-      statusCell.appendChild(statusBadge);
-      row.appendChild(statusCell);
-
       const detailCell = document.createElement("td");
       const detailLink = document.createElement("span");
       detailLink.className = "detail-link";
-      detailLink.textContent = "詳細";
+      detailLink.innerHTML = '詳細<svg class="icon" aria-hidden="true"><use href="#icon-chevron-right"></use></svg>';
       detailCell.appendChild(detailLink);
       row.appendChild(detailCell);
 
@@ -2771,10 +2865,15 @@ function openIlDetail(record) {
   const badge = document.getElementById("ilDetailStatusBadge");
   badge.textContent = IL_STATUS_LABEL[record.status] || record.status;
   badge.className = ilStatusBadgeClassName(record.status);
-  document.getElementById("ilDetailBodyPart").textContent = record.body_part || "-";
+  document.getElementById("ilDetailBodyPart").textContent = record.body_part || "部位未設定";
   document.getElementById("ilDetailDescription").textContent = record.description || "-";
   document.getElementById("ilDetailStartDate").textContent = formatRecordDate(record.start_date);
+  document.getElementById("ilDetailReturnDateValue").textContent = record.expected_return_date
+    ? formatRecordDate(record.expected_return_date)
+    : "未設定";
   document.getElementById("ilDetailDaysRemaining").textContent = ilDaysRemainingText(record.expected_return_date);
+  document.getElementById("ilDetailDaysRemaining").className =
+    "latest-condition-value " + ilRemainingTextClassName(record.expected_return_date);
   document.getElementById("ilDetailNotes").textContent = record.notes || "-";
   document.getElementById("ilDetailStatusSelect").value = record.status;
   document.getElementById("ilDetailReturnDateInput").value = record.expected_return_date || "";
@@ -2818,9 +2917,11 @@ document.getElementById("updateIlRecordBtn").addEventListener("click", async () 
 
 // 復帰プロセスstepの縦型timeline表示。完了済みはチェック表示、未完了は予定日表示のみ
 // （医学的な復帰判断はしない事実表示のみ）
-function buildRecoveryStepRow(step) {
+function buildRecoveryStepRow(step, isCurrent) {
   const row = document.createElement("div");
-  row.className = "timeline-row" + (step.completed_at ? " timeline-row-done" : "");
+  row.className =
+    "timeline-row" +
+    (step.completed_at ? " timeline-row-done" : isCurrent ? " timeline-row-current" : "");
 
   const marker = document.createElement("div");
   marker.className = "timeline-marker";
@@ -2887,7 +2988,8 @@ async function loadIlRecoverySteps(injuryRecordId) {
       container.appendChild(hint);
       return;
     }
-    steps.forEach((step) => container.appendChild(buildRecoveryStepRow(step)));
+    const currentStepId = (steps.find((s) => !s.completed_at) || {}).id;
+    steps.forEach((step) => container.appendChild(buildRecoveryStepRow(step, step.id === currentStepId)));
   } catch (error) {
     const hint = document.createElement("p");
     hint.className = "hint";

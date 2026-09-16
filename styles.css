@@ -1634,3 +1634,330 @@ textarea:focus-visible,
     height: 16px;
   }
 }
+
+/* =====================================================================
+   UI第二段階：情報の見せ方改善（機能追加なし。データ取得・保存ロジックは無変更）
+   ===================================================================== */
+
+/* ---------- ホーム：今日の状況（既存stat値の要約表示のみ、新規取得なし） ---------- */
+
+.today-overview {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 14px 20px;
+  margin-bottom: 20px;
+}
+
+.today-overview-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.today-overview-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.today-overview-value {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.today-overview-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+}
+
+/* ---------- ホーム：stat cardのグルーピング ---------- */
+
+.stat-groups {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.stat-group-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 8px 2px;
+}
+
+.stat-group .stat-grid {
+  grid-template-columns: repeat(2, 1fr);
+  margin-bottom: 0;
+}
+
+/* ---------- 共通empty state（Treatment/IL/選手一覧/InBody OFF等で統一） ---------- */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 36px 16px;
+  gap: 6px;
+}
+
+/* .card等と同じ理由：display:flexを明示している要素は[hidden]{display:none}より
+   優先されてしまうため、authorスタイルとして明示しておく */
+.empty-state[hidden] {
+  display: none;
+}
+
+.empty-state-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.empty-state-icon .icon {
+  width: 22px;
+  height: 22px;
+}
+
+.empty-state-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.empty-state-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+  max-width: 320px;
+}
+
+/* ---------- 選手詳細modal：header（avatar付き）・section説明文 ---------- */
+
+.modal-header-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.detail-section-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: -4px 0 10px;
+}
+
+/* InBody：主要指標（体重/骨格筋量/体脂肪率/InBody Score）を先に強調し、
+   BMI/基礎代謝量は同じgrid内でも一段控えめな表示にする */
+.latest-condition-item-secondary .latest-condition-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* ---------- Treatment詳細modal：上部（日付＋編集）・secondary情報 ---------- */
+
+.modal-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.modal-top-date {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.value-secondary {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* ---------- Treatment履歴カード：フッター行（内容＋メモ有無＋chevron） ---------- */
+
+.treatment-list-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.treatment-list-footer .treatment-list-type {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+
+.treatment-list-trailing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.treatment-list-memo-note {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.treatment-list-trailing .icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* ---------- 選手一覧：詳細linkのchevron・IL inline badge ---------- */
+
+.detail-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.detail-link .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.il-inline-badge {
+  margin-left: 6px;
+}
+
+/* ---------- IL：残り日数の色分け（Blue=通常 / Gray=未設定 / 控えめなRed=期限超過） ---------- */
+
+.badge-pill.badge-red-soft {
+  background: #fdeceb;
+  color: #b3453c;
+}
+
+.il-return-date-cell,
+.data-table .member-name-cell {
+  font-weight: 700;
+}
+
+.text-muted {
+  color: var(--text-secondary);
+}
+
+.text-blue {
+  color: var(--blue-dark);
+}
+
+.text-overdue {
+  color: #b3453c;
+}
+
+/* ---------- IL詳細modal：summary card ---------- */
+
+.il-summary-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+
+.il-summary-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.il-summary-bodypart {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.il-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.il-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ---------- Recovery timeline：現在stepをBlueで強調 ---------- */
+
+.timeline-row-current .timeline-marker {
+  border-color: var(--blue);
+  background: var(--blue-soft);
+}
+
+.timeline-row-current .timeline-title {
+  color: var(--blue-dark);
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1024px) {
+  .stat-groups {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .stat-groups {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .stat-group .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .today-overview {
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .today-overview-sep {
+    display: none;
+  }
+
+  .il-summary-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .today-overview-item {
+    flex: 1 1 45%;
+  }
+
+  .il-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .il-summary-grid .il-summary-item:last-child {
+    grid-column: 1 / -1;
+  }
+}
