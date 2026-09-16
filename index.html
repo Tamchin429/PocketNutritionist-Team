@@ -8,10 +8,73 @@
   <meta name="robots" content="noindex,nofollow" />
   <meta name="description" content="PocketNutritionist チーム管理" />
   <title>PocketNutritionist Team</title>
-  <!-- v=6: トリートメント（新規登録/詳細/編集・人体図）・ILリスト追加分 -->
-  <link rel="stylesheet" href="styles.css?v=6" />
+  <!-- v=7: UI仕上げフェーズ（inline SVG icon・sidebar/topbar/カード等の質感改善） -->
+  <link rel="stylesheet" href="styles.css?v=7" />
 </head>
 <body>
+  <!-- 共通inline SVGアイコンsprite。外部アイコンライブラリ/CDNは使わず、この<symbol>群だけを
+       <svg class="icon"><use href="#icon-xxx"/></svg>の形で全画面から参照する。
+       stroke=currentColor/fill=noneはCSS（.icon）側で一括指定するため、symbol内部には
+       個別のfill/strokeを持たせない -->
+  <svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
+    <symbol id="icon-home" viewBox="0 0 24 24">
+      <path d="M4 11.5 12 4l8 7.5" />
+      <path d="M6 10v9a1 1 0 0 0 1 1h3v-6h4v6h3a1 1 0 0 0 1-1v-9" />
+    </symbol>
+    <symbol id="icon-players" viewBox="0 0 24 24">
+      <circle cx="9" cy="8.3" r="3" />
+      <path d="M3.3 20c0-3.6 2.5-6.1 5.7-6.1s5.7 2.5 5.7 6.1" />
+      <circle cx="17" cy="9.3" r="2.2" />
+      <path d="M14.9 14.3c1-.7 2.1-1.1 3.3-.9 2 .3 3.5 2.2 3.7 5.3" />
+    </symbol>
+    <symbol id="icon-treatment" viewBox="0 0 24 24">
+      <path d="M12 20s-7.2-4.4-9.6-9.1A5 5 0 0 1 12 6a5 5 0 0 1 9.6 4.9C19.2 15.6 12 20 12 20Z" />
+    </symbol>
+    <symbol id="icon-il" viewBox="0 0 24 24">
+      <rect x="5" y="4" width="14" height="17" rx="2.2" />
+      <path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" />
+      <path d="M8.5 11.5h7M8.5 15h7M8.5 18.5h4" />
+    </symbol>
+    <symbol id="icon-team" viewBox="0 0 24 24">
+      <circle cx="12" cy="8.2" r="3.1" />
+      <path d="M5 20c0-3.9 3-6.5 7-6.5s7 2.6 7 6.5" />
+      <circle cx="5.3" cy="9.6" r="1.9" />
+      <circle cx="18.7" cy="9.6" r="1.9" />
+    </symbol>
+    <symbol id="icon-account" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="10.2" r="3" />
+      <path d="M6.3 18.5c1.2-2.6 3.2-4 5.7-4s4.5 1.4 5.7 4" />
+    </symbol>
+    <symbol id="icon-share" viewBox="0 0 24 24">
+      <circle cx="6" cy="12" r="2.2" />
+      <circle cx="18" cy="6" r="2.2" />
+      <circle cx="18" cy="18" r="2.2" />
+      <path d="M8 11l8-4M8 13l8 4" />
+    </symbol>
+    <symbol id="icon-check-circle" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8 12.5l2.5 2.5 5.5-6" />
+    </symbol>
+    <symbol id="icon-clock" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3.5 2" />
+    </symbol>
+    <symbol id="icon-copy" viewBox="0 0 24 24">
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3" />
+    </symbol>
+    <symbol id="icon-refresh" viewBox="0 0 24 24">
+      <path d="M4 12a8 8 0 0 1 14-5.3" />
+      <path d="M20 12a8 8 0 0 1-14 5.3" />
+      <path d="M18 3v4.5h-4.5" />
+      <path d="M6 21v-4.5h4.5" />
+    </symbol>
+    <symbol id="icon-check" viewBox="0 0 24 24">
+      <path d="M5 12.5l4.5 4.5L19 7" />
+    </symbol>
+  </svg>
+
   <!-- ログイン等の認証画面でだけ見える簡易ヘッダー。ダッシュボード表示中はJS
        （showView内でbodyへ付与するapp-shell-activeクラス）でCSS側から非表示にする -->
   <header class="site-header">
@@ -207,26 +270,26 @@
             </div>
             <div class="team-nav">
               <button class="team-nav-item active" data-team-page="home" type="button">
-                <span class="team-nav-icon" aria-hidden="true">⌂</span><span>ホーム</span>
+                <span class="team-nav-icon"><svg class="icon" aria-hidden="true"><use href="#icon-home"></use></svg></span><span>ホーム</span>
               </button>
               <button class="team-nav-item" data-team-page="players" type="button">
-                <span class="team-nav-icon" aria-hidden="true">●</span><span>選手</span>
+                <span class="team-nav-icon"><svg class="icon" aria-hidden="true"><use href="#icon-players"></use></svg></span><span>選手</span>
               </button>
               <button class="team-nav-item" data-team-page="treatment" type="button">
-                <span class="team-nav-icon" aria-hidden="true">✚</span><span>トリートメント</span>
+                <span class="team-nav-icon"><svg class="icon" aria-hidden="true"><use href="#icon-treatment"></use></svg></span><span>トリートメント</span>
               </button>
               <button class="team-nav-item" data-team-page="il" type="button">
-                <span class="team-nav-icon" aria-hidden="true">▲</span><span>ILリスト</span>
+                <span class="team-nav-icon"><svg class="icon" aria-hidden="true"><use href="#icon-il"></use></svg></span><span>ILリスト</span>
               </button>
               <button class="team-nav-item" data-team-page="team" type="button">
-                <span class="team-nav-icon" aria-hidden="true">◆</span><span>チーム</span>
+                <span class="team-nav-icon"><svg class="icon" aria-hidden="true"><use href="#icon-team"></use></svg></span><span>チーム</span>
               </button>
               <button class="team-nav-item" data-team-page="account" type="button">
-                <span class="team-nav-icon" aria-hidden="true">◐</span><span>アカウント</span>
+                <span class="team-nav-icon"><svg class="icon" aria-hidden="true"><use href="#icon-account"></use></svg></span><span>アカウント</span>
               </button>
             </div>
             <div class="team-sidebar-footer">
-              <span class="badge-pill" id="sidebarContractBadge" hidden>契約中</span>
+              <span class="badge-pill badge-subtle" id="sidebarContractBadge" hidden>契約中</span>
             </div>
           </nav>
 
@@ -247,28 +310,46 @@
 
                 <div class="stat-grid">
                   <div class="stat-card">
-                    <span class="stat-label">所属選手</span>
-                    <span class="stat-value" id="statMemberCount">-</span>
+                    <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-players"></use></svg></span>
+                    <div class="stat-card-body">
+                      <span class="stat-label">所属選手</span>
+                      <span class="stat-value" id="statMemberCount">-</span>
+                    </div>
                   </div>
                   <div class="stat-card">
-                    <span class="stat-label">コンディション共有中</span>
-                    <span class="stat-value" id="statSharedCount">-</span>
+                    <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-share"></use></svg></span>
+                    <div class="stat-card-body">
+                      <span class="stat-label">コンディション共有中</span>
+                      <span class="stat-value" id="statSharedCount">-</span>
+                    </div>
                   </div>
                   <div class="stat-card">
-                    <span class="stat-label">本日入力済み</span>
-                    <span class="stat-value" id="statTodayCount">-</span>
+                    <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-check-circle"></use></svg></span>
+                    <div class="stat-card-body">
+                      <span class="stat-label">本日入力済み</span>
+                      <span class="stat-value" id="statTodayCount">-</span>
+                    </div>
                   </div>
                   <div class="stat-card">
-                    <span class="stat-label">未入力</span>
-                    <span class="stat-value" id="statNotInputCount">-</span>
+                    <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-clock"></use></svg></span>
+                    <div class="stat-card-body">
+                      <span class="stat-label">未入力</span>
+                      <span class="stat-value" id="statNotInputCount">-</span>
+                    </div>
                   </div>
                   <div class="stat-card">
-                    <span class="stat-label">IL登録中</span>
-                    <span class="stat-value" id="statIlCount">-</span>
+                    <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-il"></use></svg></span>
+                    <div class="stat-card-body">
+                      <span class="stat-label">IL登録中</span>
+                      <span class="stat-value" id="statIlCount">-</span>
+                    </div>
                   </div>
                   <div class="stat-card">
-                    <span class="stat-label">本日のトリートメント</span>
-                    <span class="stat-value" id="statTreatmentTodayCount">-</span>
+                    <span class="stat-icon"><svg class="icon" aria-hidden="true"><use href="#icon-treatment"></use></svg></span>
+                    <div class="stat-card-body">
+                      <span class="stat-label">本日のトリートメント</span>
+                      <span class="stat-value" id="statTreatmentTodayCount">-</span>
+                    </div>
                   </div>
                 </div>
 
@@ -428,7 +509,8 @@
                   <p class="hint">登録メールアドレス宛にパスワード再設定メールを送信します。</p>
                   <button id="accountChangePasswordBtn" class="secondary btn-inline" type="button">パスワードを変更</button>
                 </div>
-                <div class="card">
+                <div class="card danger-area">
+                  <p class="hint">ログアウトすると、次回はメールアドレスとパスワードで再度ログインが必要です。</p>
                   <button id="accountLogoutBtn" class="danger btn-inline" type="button">ログアウト</button>
                 </div>
               </section>
@@ -450,10 +532,14 @@
       <p class="hint">PocketNutritionistアプリのチーム連携から、以下の招待コードを入力してください。</p>
       <div class="invite-code-row">
         <code id="inviteCodeValue">--------</code>
-        <button id="copyInviteCodeBtn" class="secondary" type="button">コピー</button>
+        <button id="copyInviteCodeBtn" class="secondary btn-icon-text" type="button">
+          <svg class="icon" aria-hidden="true"><use href="#icon-copy"></use></svg>コピー
+        </button>
       </div>
       <p class="hint" id="inviteCodeExpiry" hidden></p>
-      <button id="regenerateInviteCodeBtn" class="secondary btn-block" type="button">招待コードを再発行</button>
+      <button id="regenerateInviteCodeBtn" class="secondary btn-block btn-icon-text" type="button">
+        <svg class="icon" aria-hidden="true"><use href="#icon-refresh"></use></svg>招待コードを再発行
+      </button>
       <div id="dashboardStatus" class="status-msg"></div>
     </div>
 
@@ -793,6 +879,6 @@
   <!-- app.jsはこれまでバージョンクエリを付けていなかったため、GitHub Pages/ブラウザに
        古いapp.jsがキャッシュされたまま残る可能性があった。styles.cssと同じ方式で
        クエリを付け、コード変更時は必ずこの数値を上げる（v=1から開始） -->
-  <script src="app.js?v=1"></script>
+  <script src="app.js?v=2"></script>
 </body>
 </html>

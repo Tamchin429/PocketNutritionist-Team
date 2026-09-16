@@ -1250,12 +1250,29 @@ async function loadMembers(teamId) {
 
 // 一覧行はcreateElement + textContentのみで組み立てる（display_name等のuser-controlled
 // textをinnerHTMLへ入れない。本ファイル全体で一貫している方針）
+// 表示名の頭文字を使った小さな丸avatar（画像アップロードは追加しない）。
+// 未設定の場合は"?"にする
+function avatarInitial(name) {
+  const trimmed = (name || "").trim();
+  return trimmed ? trimmed.charAt(0).toUpperCase() : "?";
+}
+
 function buildMemberRow(member) {
   const row = document.createElement("tr");
 
   const nameCell = document.createElement("td");
   nameCell.className = "member-name-cell";
-  nameCell.textContent = member.displayName || "未設定";
+  const nameWrap = document.createElement("div");
+  nameWrap.className = "member-name-wrap";
+  const avatar = document.createElement("span");
+  avatar.className = "avatar-circle avatar-circle-sm";
+  avatar.setAttribute("aria-hidden", "true");
+  avatar.textContent = avatarInitial(member.displayName);
+  nameWrap.appendChild(avatar);
+  const nameText = document.createElement("span");
+  nameText.textContent = member.displayName || "未設定";
+  nameWrap.appendChild(nameText);
+  nameCell.appendChild(nameWrap);
   row.appendChild(nameCell);
 
   const shareCell = document.createElement("td");
@@ -2477,7 +2494,12 @@ function buildTreatmentListRow(row) {
   if (parts.length > 0) {
     const partsEl = document.createElement("div");
     partsEl.className = "treatment-list-parts";
-    partsEl.textContent = parts.join("・");
+    parts.forEach((label) => {
+      const pill = document.createElement("span");
+      pill.className = "badge-pill badge-gray part-pill";
+      pill.textContent = label;
+      partsEl.appendChild(pill);
+    });
     container.appendChild(partsEl);
   }
 
@@ -2550,6 +2572,22 @@ const IL_STATUS_LABEL = {
   returned: "復帰",
   closed: "終了",
 };
+
+// UI仕上げ：ステータスごとに控えめな色分けをする（強い赤等は使わない）。
+// il=注意喚起の薄い黄、rehab=進行中の薄い青、partial_return=薄いteal、
+// returned=薄い緑、closed=グレー（終了・アーカイブ）
+const IL_STATUS_BADGE_CLASS = {
+  il: "badge-yellow",
+  rehab: "",
+  partial_return: "badge-teal",
+  returned: "badge-green",
+  closed: "badge-gray",
+};
+
+function ilStatusBadgeClassName(status) {
+  const extra = IL_STATUS_BADGE_CLASS[status];
+  return extra ? `badge-pill ${extra}` : "badge-pill";
+}
 
 function ilDaysRemainingText(expectedReturnDate) {
   if (!expectedReturnDate) return "-";
@@ -2636,9 +2674,7 @@ async function loadIlList() {
 
       const statusCell = document.createElement("td");
       const statusBadge = document.createElement("span");
-      statusBadge.className = record.status === "returned" || record.status === "closed"
-        ? "badge-pill badge-gray"
-        : "badge-pill";
+      statusBadge.className = ilStatusBadgeClassName(record.status);
       statusBadge.textContent = IL_STATUS_LABEL[record.status] || record.status;
       statusCell.appendChild(statusBadge);
       row.appendChild(statusCell);
@@ -2734,7 +2770,7 @@ function openIlDetail(record) {
   document.getElementById("ilDetailMemberName").textContent = memberDisplayName(record.member_user_id);
   const badge = document.getElementById("ilDetailStatusBadge");
   badge.textContent = IL_STATUS_LABEL[record.status] || record.status;
-  badge.classList.toggle("badge-gray", record.status === "returned" || record.status === "closed");
+  badge.className = ilStatusBadgeClassName(record.status);
   document.getElementById("ilDetailBodyPart").textContent = record.body_part || "-";
   document.getElementById("ilDetailDescription").textContent = record.description || "-";
   document.getElementById("ilDetailStartDate").textContent = formatRecordDate(record.start_date);
@@ -2788,7 +2824,11 @@ function buildRecoveryStepRow(step) {
 
   const marker = document.createElement("div");
   marker.className = "timeline-marker";
-  marker.textContent = step.completed_at ? "✓" : "";
+  if (step.completed_at) {
+    // Unicode記号ではなく共通SVG iconスプライトのcheckを使う（静的な固定markupのみ、
+    // ユーザー入力は一切含めないためinnerHTMLで安全）
+    marker.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#icon-check"></use></svg>';
+  }
   row.appendChild(marker);
 
   const body = document.createElement("div");
