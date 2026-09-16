@@ -8,8 +8,8 @@
   <meta name="robots" content="noindex,nofollow" />
   <meta name="description" content="PocketNutritionist チーム管理" />
   <title>PocketNutritionist Team</title>
-  <!-- v=5: チーム/アカウント画面・共通UX仕上げ（spinner・badge・タップ領域・アクセシビリティ） -->
-  <link rel="stylesheet" href="styles.css?v=5" />
+  <!-- v=6: トリートメント（新規登録/詳細/編集・人体図）・ILリスト追加分 -->
+  <link rel="stylesheet" href="styles.css?v=6" />
 </head>
 <body>
   <!-- ログイン等の認証画面でだけ見える簡易ヘッダー。ダッシュボード表示中はJS
@@ -790,6 +790,9 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
   <script src="config.js"></script>
-  <script src="app.js"></script>
+  <!-- app.jsはこれまでバージョンクエリを付けていなかったため、GitHub Pages/ブラウザに
+       古いapp.jsがキャッシュされたまま残る可能性があった。styles.cssと同じ方式で
+       クエリを付け、コード変更時は必ずこの数値を上げる（v=1から開始） -->
+  <script src="app.js?v=1"></script>
 </body>
 </html>
