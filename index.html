@@ -336,52 +336,15 @@
 
               <!-- ============ トリートメント ============ -->
               <section class="team-page" id="team-page-treatment" hidden>
-                <h1 class="page-heading">トリートメント</h1>
-
-                <div class="card">
-                  <div class="form-row">
-                    <label class="field-label" for="treatmentMemberSelect">選手</label>
-                    <select id="treatmentMemberSelect"></select>
-                  </div>
-                  <div class="form-row">
-                    <label class="field-label" for="treatmentDateInput">日付</label>
-                    <input type="date" id="treatmentDateInput" />
-                  </div>
-
-                  <div class="body-map-row">
-                    <div class="body-map-col">
-                      <div class="body-map-tabs">
-                        <button type="button" class="chart-tab-btn active" data-body-view="front">前面</button>
-                        <button type="button" class="chart-tab-btn" data-body-view="back">背面</button>
-                      </div>
-                      <div id="bodyMapFront" class="body-map-svg-wrap"></div>
-                      <div id="bodyMapBack" class="body-map-svg-wrap" hidden></div>
-                    </div>
-                    <div class="body-map-col">
-                      <span class="field-label">選択中の部位</span>
-                      <div id="selectedBodyPartsList" class="selected-parts-list">
-                        <span class="hint">部位をタップして選択してください</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="form-row">
-                    <label class="field-label" for="treatmentTypeInput">トリートメント内容</label>
-                    <input type="text" id="treatmentTypeInput" placeholder="例：アイシング、テーピング、マッサージ" />
-                  </div>
-                  <div class="form-row">
-                    <label class="field-label" for="treatmentNotesInput">メモ</label>
-                    <textarea id="treatmentNotesInput" rows="3" placeholder="メモ（任意）"></textarea>
-                  </div>
-                  <button id="saveTreatmentBtn" class="btn-inline" type="button">保存</button>
-                  <div id="treatmentSaveStatus" class="status-msg"></div>
+                <div class="page-header-row">
+                  <h1 class="page-heading">トリートメント</h1>
+                  <button id="openTreatmentCreateModalBtn" class="btn-inline" type="button">新規登録</button>
                 </div>
 
-                <div class="detail-section-title">過去履歴</div>
                 <div class="card">
                   <div id="treatmentHistoryStatus" class="status-msg"></div>
-                  <p class="hint" id="treatmentHistoryEmptyHint" hidden>この選手のトリートメント記録はまだありません。</p>
-                  <div id="treatmentHistoryList" class="condition-list"></div>
+                  <p class="hint" id="treatmentHistoryEmptyHint" hidden>トリートメント記録はまだありません。</p>
+                  <div id="treatmentHistoryList" class="treatment-list"></div>
                 </div>
               </section>
 
@@ -624,6 +587,89 @@
 
       <button id="removeMemberBtn" class="danger btn-block" type="button">チームから外す</button>
       <div id="memberDetailActionStatus" class="status-msg"></div>
+    </div>
+
+    <!-- ================= トリートメント新規登録（modal） ================= -->
+    <div class="overlay-backdrop" id="treatmentCreateModalBackdrop" hidden></div>
+    <div class="card modal" id="treatmentCreateModalPanel" hidden role="dialog" aria-modal="true" aria-labelledby="treatmentCreateModalTitle">
+      <div class="modal-header">
+        <h2 id="treatmentCreateModalTitle">トリートメント新規登録</h2>
+        <button id="closeTreatmentCreateModalBtn" class="secondary" type="button">閉じる</button>
+      </div>
+
+      <div class="form-row">
+        <label class="field-label" for="treatmentMemberSelect">選手</label>
+        <select id="treatmentMemberSelect"></select>
+      </div>
+      <div class="form-row">
+        <label class="field-label" for="treatmentDateInput">日付</label>
+        <input type="date" id="treatmentDateInput" />
+      </div>
+
+      <div class="body-map-row">
+        <div class="body-map-col">
+          <div class="body-map-tabs">
+            <button type="button" class="chart-tab-btn active" data-body-view="front">前面</button>
+            <button type="button" class="chart-tab-btn" data-body-view="back">背面</button>
+          </div>
+          <div id="bodyMapFront" class="body-map-svg-wrap"></div>
+          <div id="bodyMapBack" class="body-map-svg-wrap" hidden></div>
+        </div>
+        <div class="body-map-col">
+          <span class="field-label">選択中の部位</span>
+          <div id="selectedBodyPartsList" class="selected-parts-list">
+            <span class="hint">部位をタップして選択してください</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="field-label" for="treatmentTypeInput">トリートメント内容</label>
+        <input type="text" id="treatmentTypeInput" placeholder="例：アイシング、テーピング、マッサージ" />
+      </div>
+      <div class="form-row">
+        <label class="field-label" for="treatmentNotesInput">メモ</label>
+        <textarea id="treatmentNotesInput" rows="3" placeholder="メモ（任意）"></textarea>
+      </div>
+      <div class="modal-action-row">
+        <button id="cancelTreatmentCreateBtn" class="secondary btn-inline" type="button">キャンセル</button>
+        <button id="saveTreatmentBtn" class="btn-inline" type="button">保存</button>
+      </div>
+      <div id="treatmentSaveStatus" class="status-msg"></div>
+    </div>
+
+    <!-- ================= トリートメント詳細（modal） ================= -->
+    <div class="overlay-backdrop" id="treatmentDetailModalBackdrop" hidden></div>
+    <div class="card modal" id="treatmentDetailModalPanel" hidden role="dialog" aria-modal="true" aria-labelledby="treatmentDetailMemberName">
+      <div class="modal-header">
+        <h2 id="treatmentDetailMemberName">-</h2>
+        <button id="closeTreatmentDetailModalBtn" class="secondary" type="button">閉じる</button>
+      </div>
+
+      <div class="field-row">
+        <span class="field-label">日付</span>
+        <span id="treatmentDetailDate" class="value">-</span>
+      </div>
+      <div class="field-row">
+        <span class="field-label">部位</span>
+        <span id="treatmentDetailBodyParts" class="value">-</span>
+      </div>
+      <div class="field-row">
+        <span class="field-label">トリートメント内容</span>
+        <span id="treatmentDetailType" class="value">-</span>
+      </div>
+      <div class="field-row">
+        <span class="field-label">メモ</span>
+        <span id="treatmentDetailNotes" class="value">-</span>
+      </div>
+      <div class="field-row">
+        <span class="field-label">記録者</span>
+        <span id="treatmentDetailRecordedBy" class="value">-</span>
+      </div>
+      <div class="field-row">
+        <span class="field-label">登録日時</span>
+        <span id="treatmentDetailCreatedAt" class="value">-</span>
+      </div>
     </div>
 
     <!-- ================= IL新規登録（modal） ================= -->

@@ -1329,3 +1329,67 @@ button.btn-inline {
     flex-direction: column;
   }
 }
+
+/* ---------- トリートメント：通常画面の管理一覧（クリックで詳細modal） ---------- */
+
+.treatment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0;
+}
+
+.treatment-list-row {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.treatment-list-row:hover,
+.treatment-list-row:focus-visible {
+  border-color: var(--blue);
+  background: var(--blue-soft);
+  outline: none;
+}
+
+.treatment-list-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.treatment-list-date {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.treatment-list-name {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.treatment-list-parts {
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+
+.treatment-list-type {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ---------- モーダル内：キャンセル／保存等を横並びにする汎用行 ---------- */
+
+.modal-action-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.modal-action-row button {
+  flex: 1;
+}

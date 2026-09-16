@@ -228,6 +228,7 @@ const roleLabel = { owner: "Owner", admin: "Admin" };
 // アカウント画面表示用。ログイン中に取得できたら保持し、以後はここから読む
 let currentUserRole = null;
 let currentUserEmail = null;
+let currentUserId = null;
 let currentTeamName = null;
 
 const CONTRACT_STATUS_LABEL = {
@@ -782,8 +783,6 @@ function showTeamPage(name) {
   if (name === "account") {
     renderAccountPage();
   } else if (name === "treatment") {
-    initBodyMapsIfNeeded();
-    populateMemberSelectOptions();
     loadTreatmentHistory();
   } else if (name === "il") {
     loadIlList();
@@ -908,6 +907,7 @@ async function loadDashboard() {
     if (!currentUserEmail) {
       const { data: userData } = await client.auth.getUser();
       currentUserEmail = userData && userData.user ? userData.user.email : null;
+      currentUserId = userData && userData.user ? userData.user.id : null;
     }
 
     await loadInviteCode(teamId);
@@ -2190,10 +2190,31 @@ function resetTreatmentForm() {
   document.getElementById("treatmentDateInput").value = todayDateString();
 }
 
-document.getElementById("treatmentDateInput").value = todayDateString();
-renderSelectedBodyPartsList();
+// ---------------------------------------------------------------------------
+// トリートメント新規登録（modal）
+// ---------------------------------------------------------------------------
+// 人体図＋入力フォームは「新規登録」を押した時だけ表示する。人体図SVG自体は
+// initBodyMapsIfNeeded()で1回だけ生成し（既存実装を再利用、作り直さない）、
+// モーダルを開くたびに再生成はしない
 
-document.getElementById("treatmentMemberSelect").addEventListener("change", loadTreatmentHistory);
+function openTreatmentCreateModal() {
+  initBodyMapsIfNeeded();
+  populateMemberSelectOptions();
+  resetTreatmentForm();
+  document.getElementById("treatmentSaveStatus").textContent = "";
+  document.getElementById("treatmentCreateModalBackdrop").hidden = false;
+  document.getElementById("treatmentCreateModalPanel").hidden = false;
+}
+
+function closeTreatmentCreateModal() {
+  document.getElementById("treatmentCreateModalBackdrop").hidden = true;
+  document.getElementById("treatmentCreateModalPanel").hidden = true;
+}
+
+document.getElementById("openTreatmentCreateModalBtn").addEventListener("click", openTreatmentCreateModal);
+document.getElementById("closeTreatmentCreateModalBtn").addEventListener("click", closeTreatmentCreateModal);
+document.getElementById("cancelTreatmentCreateBtn").addEventListener("click", closeTreatmentCreateModal);
+document.getElementById("treatmentCreateModalBackdrop").addEventListener("click", closeTreatmentCreateModal);
 
 document.getElementById("saveTreatmentBtn").addEventListener("click", async () => {
   const statusEl = document.getElementById("treatmentSaveStatus");
@@ -2227,8 +2248,9 @@ document.getElementById("saveTreatmentBtn").addEventListener("click", async () =
     });
     if (error) throw error;
     statusEl.textContent = "";
+    closeTreatmentCreateModal();
     showToast("トリートメント記録を保存しました");
-    resetTreatmentForm();
+    // 最新データを再取得（保存した記録がtreatment_date降順の一覧先頭に来る）
     await loadTreatmentHistory();
     await loadHomeExtraStats(currentTeamId);
   } catch (error) {
@@ -2239,15 +2261,20 @@ document.getElementById("saveTreatmentBtn").addEventListener("click", async () =
   }
 });
 
+// ---------------------------------------------------------------------------
+// トリートメント一覧（通常画面）・詳細（modal）
+// ---------------------------------------------------------------------------
+
+let currentTreatmentRecords = [];
+
 async function loadTreatmentHistory() {
-  const memberUserId = document.getElementById("treatmentMemberSelect").value;
   const statusEl = document.getElementById("treatmentHistoryStatus");
   const emptyHint = document.getElementById("treatmentHistoryEmptyHint");
   const listEl = document.getElementById("treatmentHistoryList");
   listEl.textContent = "";
   emptyHint.hidden = true;
 
-  if (!memberUserId || !currentTeamId) {
+  if (!currentTeamId) {
     statusEl.textContent = "";
     return;
   }
@@ -2257,44 +2284,100 @@ async function loadTreatmentHistory() {
   try {
     const { data, error } = await client
       .from("team_treatments")
-      .select("id, treatment_date, body_parts, treatment_type, notes")
+      .select("id, member_user_id, treatment_date, body_parts, treatment_type, notes, recorded_by, created_at")
       .eq("team_id", currentTeamId)
-      .eq("member_user_id", memberUserId)
       .order("treatment_date", { ascending: false })
-      .limit(30);
+      .order("created_at", { ascending: false })
+      .limit(100);
     if (error) throw error;
 
     statusEl.textContent = "";
-    const rows = data || [];
-    if (rows.length === 0) {
+    currentTreatmentRecords = data || [];
+    if (currentTreatmentRecords.length === 0) {
       emptyHint.hidden = false;
       return;
     }
-    rows.forEach((row) => {
-      const container = document.createElement("div");
-      container.className = "condition-list-row";
-
-      const dateEl = document.createElement("div");
-      dateEl.className = "condition-date";
-      dateEl.textContent = formatRecordDate(row.treatment_date);
-      container.appendChild(dateEl);
-
-      const parts = (row.body_parts || []).map((p) => BODY_PART_LABELS[p] || p);
-      const detailEl = document.createElement("div");
-      detailEl.className = "condition-detail";
-      const detailPieces = [];
-      if (parts.length > 0) detailPieces.push(parts.join("・"));
-      if (row.treatment_type) detailPieces.push(row.treatment_type);
-      if (row.notes) detailPieces.push(row.notes);
-      detailEl.textContent = detailPieces.length > 0 ? detailPieces.join("／") : "記録なし";
-      container.appendChild(detailEl);
-
-      listEl.appendChild(container);
-    });
+    currentTreatmentRecords.forEach((row) => listEl.appendChild(buildTreatmentListRow(row)));
   } catch (error) {
     statusEl.style.color = "var(--danger)";
     statusEl.textContent = "トリートメント履歴を取得できませんでした。";
   }
+}
+
+// 「日付・選手名」を見出し行、部位・内容を本文にした管理一覧カード。クリックで詳細modalを開く
+function buildTreatmentListRow(row) {
+  const container = document.createElement("div");
+  container.className = "treatment-list-row";
+  container.tabIndex = 0;
+  container.setAttribute("role", "button");
+
+  const header = document.createElement("div");
+  header.className = "treatment-list-header";
+
+  const dateEl = document.createElement("span");
+  dateEl.className = "treatment-list-date";
+  dateEl.textContent = formatRecordDate(row.treatment_date);
+  header.appendChild(dateEl);
+
+  const nameEl = document.createElement("span");
+  nameEl.className = "treatment-list-name";
+  nameEl.textContent = memberDisplayName(row.member_user_id);
+  header.appendChild(nameEl);
+
+  container.appendChild(header);
+
+  const parts = (row.body_parts || []).map((p) => BODY_PART_LABELS[p] || p);
+  if (parts.length > 0) {
+    const partsEl = document.createElement("div");
+    partsEl.className = "treatment-list-parts";
+    partsEl.textContent = parts.join("・");
+    container.appendChild(partsEl);
+  }
+
+  if (row.treatment_type) {
+    const typeEl = document.createElement("div");
+    typeEl.className = "treatment-list-type";
+    typeEl.textContent = row.treatment_type;
+    container.appendChild(typeEl);
+  }
+
+  const openDetail = () => openTreatmentDetail(row);
+  container.addEventListener("click", openDetail);
+  container.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openDetail();
+    }
+  });
+
+  return container;
+}
+
+function closeTreatmentDetailModal() {
+  document.getElementById("treatmentDetailModalBackdrop").hidden = true;
+  document.getElementById("treatmentDetailModalPanel").hidden = true;
+}
+document.getElementById("closeTreatmentDetailModalBtn").addEventListener("click", closeTreatmentDetailModal);
+document.getElementById("treatmentDetailModalBackdrop").addEventListener("click", closeTreatmentDetailModal);
+
+function openTreatmentDetail(row) {
+  document.getElementById("treatmentDetailMemberName").textContent = memberDisplayName(row.member_user_id);
+  document.getElementById("treatmentDetailDate").textContent = formatRecordDate(row.treatment_date);
+  const parts = (row.body_parts || []).map((p) => BODY_PART_LABELS[p] || p);
+  document.getElementById("treatmentDetailBodyParts").textContent = parts.length > 0 ? parts.join("・") : "-";
+  document.getElementById("treatmentDetailType").textContent = row.treatment_type || "-";
+  document.getElementById("treatmentDetailNotes").textContent = row.notes || "-";
+  // 他の管理者の表示名/メールはRLS上team-webから取得できない（team_admins_select_selfは
+  // 本人の行しか許可しない）ため、自分自身の記録の場合のみメールを表示し、他の管理者は
+  // 汎用文言にとどめる（新しいRPC/RLS変更はこのタスクの範囲外のため行わない）
+  document.getElementById("treatmentDetailRecordedBy").textContent =
+    row.recorded_by === currentUserId ? currentUserEmail || "あなた" : "他のチーム管理者";
+  document.getElementById("treatmentDetailCreatedAt").textContent = row.created_at
+    ? new Date(row.created_at).toLocaleString("ja-JP")
+    : "-";
+
+  document.getElementById("treatmentDetailModalBackdrop").hidden = false;
+  document.getElementById("treatmentDetailModalPanel").hidden = false;
 }
 
 // ---------------------------------------------------------------------------
@@ -2701,6 +2784,7 @@ async function renderForSession(session, event) {
     currentTeamId = null;
     currentUserRole = null;
     currentUserEmail = null;
+    currentUserId = null;
     currentTeamName = null;
     currentMembersData = [];
     currentDetailMember = null;
