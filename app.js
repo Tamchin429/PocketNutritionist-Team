@@ -2254,18 +2254,70 @@ function resetTreatmentForm() {
 // initBodyMapsIfNeeded()で1回だけ生成し（既存実装を再利用、作り直さない）、
 // モーダルを開くたびに再生成はしない
 
+// nullなら新規登録、レコードidが入っていれば「そのidを編集中」を意味する。
+// 新規登録・編集で同じmodal（フォーム・人体図）を再利用するための切り替えフラグ
+let currentEditingTreatmentId = null;
+
 function openTreatmentCreateModal() {
+  currentEditingTreatmentId = null;
   initBodyMapsIfNeeded();
   populateMemberSelectOptions();
+  document.getElementById("treatmentMemberSelect").disabled = false;
   resetTreatmentForm();
+  document.getElementById("treatmentCreateModalTitle").textContent = "トリートメント新規登録";
+  document.getElementById("saveTreatmentBtn").textContent = "保存";
   document.getElementById("treatmentSaveStatus").textContent = "";
   document.getElementById("treatmentCreateModalBackdrop").hidden = false;
   document.getElementById("treatmentCreateModalPanel").hidden = false;
 }
 
+// 詳細モーダルの「編集」から呼ぶ。新規登録と同じmodal・同じ人体図SVGを再利用し、
+// 保存済みのbody_parts/treatment_date/treatment_type/notesをフォームへ反映する。
+// 選手はupdate_team_treatment RPCの対象外（変更不可）のため、選択欄は表示のみにして無効化する
+function openTreatmentEditModal() {
+  if (!currentTreatmentDetailRecord) return;
+  const record = currentTreatmentDetailRecord;
+  currentEditingTreatmentId = record.id;
+
+  initBodyMapsIfNeeded();
+  populateMemberSelectOptions();
+  const memberSelect = document.getElementById("treatmentMemberSelect");
+  memberSelect.value = record.member_user_id;
+  memberSelect.disabled = true;
+
+  selectedBodyParts = new Set(record.body_parts || []);
+  document.querySelectorAll(".body-part.selected").forEach((el) => el.classList.remove("selected"));
+  selectedBodyParts.forEach((partId) => {
+    document.querySelectorAll(`.body-part[data-part="${partId}"]`).forEach((el) => el.classList.add("selected"));
+  });
+  renderSelectedBodyPartsList();
+
+  document.getElementById("treatmentDateInput").value = record.treatment_date;
+  document.getElementById("treatmentTypeInput").value = record.treatment_type || "";
+  document.getElementById("treatmentNotesInput").value = record.notes || "";
+
+  document.getElementById("treatmentCreateModalTitle").textContent = "トリートメント編集";
+  document.getElementById("saveTreatmentBtn").textContent = "更新";
+  document.getElementById("treatmentSaveStatus").textContent = "";
+
+  closeTreatmentDetailModal();
+  document.getElementById("treatmentCreateModalBackdrop").hidden = false;
+  document.getElementById("treatmentCreateModalPanel").hidden = false;
+}
+
+// 「閉じる」「キャンセル」「背景クリック」共通。編集中だった場合はDBを更新せず、
+// 入力内容を破棄して元の詳細表示へ戻す（新規登録中はこれまで通り一覧へ戻るだけ）
 function closeTreatmentCreateModal() {
   document.getElementById("treatmentCreateModalBackdrop").hidden = true;
   document.getElementById("treatmentCreateModalPanel").hidden = true;
+
+  if (currentEditingTreatmentId) {
+    currentEditingTreatmentId = null;
+    document.getElementById("treatmentMemberSelect").disabled = false;
+    if (currentTreatmentDetailRecord) {
+      openTreatmentDetail(currentTreatmentDetailRecord);
+    }
+  }
 }
 
 document.getElementById("openTreatmentCreateModalBtn").addEventListener("click", openTreatmentCreateModal);
@@ -2275,14 +2327,15 @@ document.getElementById("treatmentCreateModalBackdrop").addEventListener("click"
 
 document.getElementById("saveTreatmentBtn").addEventListener("click", async () => {
   const statusEl = document.getElementById("treatmentSaveStatus");
-  const memberSelect = document.getElementById("treatmentMemberSelect");
-  const memberUserId = memberSelect.value;
   const treatmentDate = document.getElementById("treatmentDateInput").value;
 
-  if (!memberUserId) {
-    statusEl.style.color = "var(--danger)";
-    statusEl.textContent = "選手を選択してください。";
-    return;
+  if (!currentEditingTreatmentId) {
+    const memberUserId = document.getElementById("treatmentMemberSelect").value;
+    if (!memberUserId) {
+      statusEl.style.color = "var(--danger)";
+      statusEl.textContent = "選手を選択してください。";
+      return;
+    }
   }
   if (!treatmentDate) {
     statusEl.style.color = "var(--danger)";
@@ -2293,23 +2346,54 @@ document.getElementById("saveTreatmentBtn").addEventListener("click", async () =
   const saveBtn = document.getElementById("saveTreatmentBtn");
   saveBtn.disabled = true;
   statusEl.style.color = "";
-  setLoadingStatus(statusEl, "保存中...");
+  setLoadingStatus(statusEl, currentEditingTreatmentId ? "更新中..." : "保存中...");
+
+  const bodyParts = Array.from(selectedBodyParts);
+  const treatmentType = document.getElementById("treatmentTypeInput").value.trim() || null;
+  const notes = document.getElementById("treatmentNotesInput").value.trim() || null;
+
   try {
-    const { error } = await client.rpc("create_team_treatment", {
-      p_team_id: currentTeamId,
-      p_member_user_id: memberUserId,
-      p_treatment_date: treatmentDate,
-      p_body_parts: Array.from(selectedBodyParts),
-      p_treatment_type: document.getElementById("treatmentTypeInput").value.trim() || null,
-      p_notes: document.getElementById("treatmentNotesInput").value.trim() || null,
-    });
-    if (error) throw error;
-    statusEl.textContent = "";
-    closeTreatmentCreateModal();
-    showToast("トリートメント記録を保存しました");
-    // 最新データを再取得（保存した記録がtreatment_date降順の一覧先頭に来る）
-    await loadTreatmentHistory();
-    await loadHomeExtraStats(currentTeamId);
+    if (currentEditingTreatmentId) {
+      const editingId = currentEditingTreatmentId;
+      const { error } = await client.rpc("update_team_treatment", {
+        p_id: editingId,
+        p_treatment_date: treatmentDate,
+        p_body_parts: bodyParts,
+        p_treatment_type: treatmentType,
+        p_notes: notes,
+      });
+      if (error) throw error;
+      statusEl.textContent = "";
+      currentEditingTreatmentId = null;
+      document.getElementById("treatmentMemberSelect").disabled = false;
+      document.getElementById("treatmentCreateModalBackdrop").hidden = true;
+      document.getElementById("treatmentCreateModalPanel").hidden = true;
+      showToast("トリートメント記録を更新しました");
+
+      // 一覧を最新化した上で、詳細表示も更新後の内容で開き直す
+      await loadTreatmentHistory();
+      const updatedRecord =
+        currentTreatmentRecords.find((r) => r.id === editingId) ||
+        { ...currentTreatmentDetailRecord, treatment_date: treatmentDate, body_parts: bodyParts, treatment_type: treatmentType, notes };
+      openTreatmentDetail(updatedRecord);
+    } else {
+      const memberUserId = document.getElementById("treatmentMemberSelect").value;
+      const { error } = await client.rpc("create_team_treatment", {
+        p_team_id: currentTeamId,
+        p_member_user_id: memberUserId,
+        p_treatment_date: treatmentDate,
+        p_body_parts: bodyParts,
+        p_treatment_type: treatmentType,
+        p_notes: notes,
+      });
+      if (error) throw error;
+      statusEl.textContent = "";
+      closeTreatmentCreateModal();
+      showToast("トリートメント記録を保存しました");
+      // 最新データを再取得（保存した記録がtreatment_date降順の一覧先頭に来る）
+      await loadTreatmentHistory();
+      await loadHomeExtraStats(currentTeamId);
+    }
   } catch (error) {
     statusEl.style.color = "var(--danger)";
     statusEl.textContent = japaneseRpcErrorMessage(error);
@@ -2422,8 +2506,15 @@ function closeTreatmentDetailModal() {
 }
 document.getElementById("closeTreatmentDetailModalBtn").addEventListener("click", closeTreatmentDetailModal);
 document.getElementById("treatmentDetailModalBackdrop").addEventListener("click", closeTreatmentDetailModal);
+document.getElementById("editTreatmentBtn").addEventListener("click", openTreatmentEditModal);
+
+// 現在詳細モーダルに表示中のレコード。「編集」を押した時の初期値や、編集キャンセル時に
+// 戻る先として使う
+let currentTreatmentDetailRecord = null;
 
 function openTreatmentDetail(row) {
+  currentTreatmentDetailRecord = row;
+
   // 新規登録側の人体図SVGがまだ生成されていない場合に備え、複製元を先に用意する
   // （bodyMapsInitializedにより2回目以降は何もしない）
   initBodyMapsIfNeeded();
