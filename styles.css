@@ -1526,6 +1526,11 @@ textarea:focus-visible,
   flex-direction: row;
   align-items: center;
   gap: 12px;
+  /* 6枚すべてを同じ高さに揃える。長いlabel（コンディション共有中/本日のトリートメント）が
+     2行になっても、他のカードとサイズ・数値位置がズレないための固定値
+     （icon 38px + padding 32px + label 2行分32px + gap 2px + value 32pxを収める高さ） */
+  min-height: 96px;
+  height: 100%;
 }
 
 .stat-icon {
@@ -1543,8 +1548,20 @@ textarea:focus-visible,
 .stat-card-body {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 2px;
   min-width: 0;
+  height: 100%;
+}
+
+/* labelを常に2行分の高さで確保することで、1行のlabel（所属選手等）でも2行のlabel
+   （コンディション共有中等）と同じ位置にvalueが来るようにする。align-items:flex-endで
+   1行の場合はlabel下端をvalueの直前に揃える */
+.stat-label {
+  display: flex;
+  align-items: flex-end;
+  min-height: 32px;
+  line-height: 1.3;
 }
 
 /* ---------- テーブル：見出し・行hoverの統一（クリック不可の表も含める） ---------- */
