@@ -54,7 +54,7 @@ body {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image: url("assets/v-narish-logo.png");
+  background-image: url("v-narish-logo.png");
   background-repeat: no-repeat;
   background-position: right 3% bottom 5%;
   background-size: 620px;
