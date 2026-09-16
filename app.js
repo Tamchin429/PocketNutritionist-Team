@@ -669,7 +669,12 @@ document.getElementById("proceedToDashboardBtn").addEventListener("click", async
 // ログアウト
 // ---------------------------------------------------------------------------
 
-document.getElementById("logoutBtn").addEventListener("click", async () => {
+// ログアウトボタンはヘッダー（#logoutBtn、認証系画面用）とdashboard内Account画面
+// （#accountLogoutBtn）の2箇所に存在する。以前は両方が同じid="logoutBtn"だったため
+// document.getElementById()がヘッダー側しか取得できず、実際にユーザーが押す
+// Account画面側のボタンにイベントが付いていなかった（＝ログアウトできない不具合の原因）。
+// idを分離した上で、共通処理をperformLogout()にまとめ両方から呼ぶ
+async function performLogout() {
   // 操作ミス防止のため軽い確認を入れる（既存remove_team_member等の他の破壊的操作と
   // 同じwindow.confirmパターンに揃える）
   if (!window.confirm("ログアウトしますか？")) return;
@@ -680,7 +685,11 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
   isPasswordRecovery = false;
   await client.auth.signOut();
   // onAuthStateChangeがSIGNED_OUTを発火し、ログイン画面へ自動的に戻る
-});
+  // （renderForSessionの!session分岐がdashboard関連stateの破棄とshowView("login")を行う）
+}
+
+document.getElementById("logoutBtn").addEventListener("click", performLogout);
+document.getElementById("accountLogoutBtn").addEventListener("click", performLogout);
 
 // ---------------------------------------------------------------------------
 // アカウント画面
@@ -746,10 +755,19 @@ createTeamBtn.addEventListener("click", async () => {
 const teamPages = {
   home: document.getElementById("team-page-home"),
   players: document.getElementById("team-page-players"),
+  treatment: document.getElementById("team-page-treatment"),
+  il: document.getElementById("team-page-il"),
   team: document.getElementById("team-page-team"),
   account: document.getElementById("team-page-account"),
 };
-const teamPageTitleLabel = { home: "ホーム", players: "選手", team: "チーム", account: "アカウント" };
+const teamPageTitleLabel = {
+  home: "ホーム",
+  players: "選手",
+  treatment: "トリートメント",
+  il: "ILリスト",
+  team: "チーム",
+  account: "アカウント",
+};
 const teamNavItems = document.querySelectorAll(".team-nav-item");
 const teamPageTitleEl = document.getElementById("teamPageTitle");
 
@@ -763,6 +781,12 @@ function showTeamPage(name) {
   teamPageTitleEl.textContent = teamPageTitleLabel[name] || "";
   if (name === "account") {
     renderAccountPage();
+  } else if (name === "treatment") {
+    initBodyMapsIfNeeded();
+    populateMemberSelectOptions();
+    loadTreatmentHistory();
+  } else if (name === "il") {
+    loadIlList();
   }
 }
 
@@ -888,6 +912,7 @@ async function loadDashboard() {
 
     await loadInviteCode(teamId);
     await loadMembers(teamId);
+    await loadHomeExtraStats(teamId);
 
     showTeamPage("home");
     showView("dashboard");
@@ -1168,7 +1193,7 @@ async function loadMembers(teamId) {
     // team_share_permissionsは既存のRLS（team_adminsの行が存在すれば閲覧可）でそのまま取得できる。
     // data_category=condition の行だけをサーバー側で絞り込む（mealの行はDBに残っているが、
     // チーム共有はconditionのみに整理済みのため表示では使わない）
-    const [profilesResult, permissionsResult] = await Promise.all([
+    const [profilesResult, permissionsResult, inbodyPermissionsResult] = await Promise.all([
       client.rpc("get_team_member_profiles", { p_team_id: teamId }),
       client
         .from("team_share_permissions")
@@ -1176,15 +1201,25 @@ async function loadMembers(teamId) {
         .eq("team_id", teamId)
         .eq("data_category", "condition")
         .in("user_id", userIds),
+      client
+        .from("team_share_permissions")
+        .select("user_id, is_shared")
+        .eq("team_id", teamId)
+        .eq("data_category", "inbody")
+        .in("user_id", userIds),
     ]);
     if (profilesResult.error) throw profilesResult.error;
     if (permissionsResult.error) throw permissionsResult.error;
+    if (inbodyPermissionsResult.error) throw inbodyPermissionsResult.error;
 
     const displayNameByUserId = new Map(
       (profilesResult.data || []).map((p) => [p.user_id, p.display_name])
     );
     const conditionSharedByUserId = new Map(
       (permissionsResult.data || []).map((row) => [row.user_id, !!row.is_shared])
+    );
+    const inbodySharedByUserId = new Map(
+      (inbodyPermissionsResult.data || []).map((row) => [row.user_id, !!row.is_shared])
     );
 
     const sharedUserIds = userIds.filter((id) => conditionSharedByUserId.get(id));
@@ -1197,6 +1232,7 @@ async function loadMembers(teamId) {
         status: m.status,
         displayName: displayNameByUserId.get(m.user_id) || null,
         conditionShared: conditionSharedByUserId.get(m.user_id) || false,
+        inbodyShared: inbodySharedByUserId.get(m.user_id) || false,
         latestCondition: latestConditionByUserId.get(m.user_id) || null,
       };
     });
@@ -1205,6 +1241,7 @@ async function loadMembers(teamId) {
     currentMembersData = enriched;
     applyPlayersView();
     renderHomeSummary(enriched);
+    populateMemberSelectOptions();
   } catch (error) {
     membersStatus.style.color = "var(--danger)";
     membersStatus.textContent = "選手一覧を取得できませんでした。";
@@ -1457,10 +1494,14 @@ function openMemberDetail(member) {
     b.classList.toggle("active", b.dataset.chartMetric === "fatigue");
   });
 
+  document.getElementById("memberDetailInBodyLatestCard").hidden = true;
+  document.getElementById("memberDetailInBodyEmpty").hidden = true;
+
   memberDetailPanel.hidden = false;
   memberDetailBackdrop.hidden = false;
 
   loadMemberConditionShares(member);
+  loadMemberInBodyShares(member);
 }
 
 // "YYYY-MM-DD"（Postgresのdate型がPostgRESTから返す形式）を、タイムゾーン変換を経由せず
@@ -1675,12 +1716,121 @@ document.querySelectorAll("#chartTabs .chart-tab-btn").forEach((btn) => {
   });
 });
 
-function appendConditionHint(text) {
-  const memberDetailConditionList = document.getElementById("memberDetailConditionList");
+function appendHintTo(containerId, text) {
+  const container = document.getElementById(containerId);
   const note = document.createElement("p");
   note.className = "hint";
   note.textContent = text;
-  memberDetailConditionList.appendChild(note);
+  container.appendChild(note);
+}
+
+function appendConditionHint(text) {
+  appendHintTo("memberDetailConditionList", text);
+}
+
+// ---------------------------------------------------------------------------
+// 選手詳細：InBody（チーム共有 Phase 4）
+// ---------------------------------------------------------------------------
+
+function buildInBodyRow(row) {
+  const container = document.createElement("div");
+  container.className = "condition-list-row";
+
+  const dateEl = document.createElement("div");
+  dateEl.className = "condition-date";
+  dateEl.textContent = new Date(row.measured_at).toLocaleString("ja-JP", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  container.appendChild(dateEl);
+
+  const parts = [];
+  if (row.weight_kg != null) parts.push(`体重 ${row.weight_kg}kg`);
+  if (row.skeletal_muscle_mass_kg != null) parts.push(`骨格筋量 ${row.skeletal_muscle_mass_kg}kg`);
+  if (row.body_fat_percentage != null) parts.push(`体脂肪率 ${row.body_fat_percentage}%`);
+  if (row.bmi != null) parts.push(`BMI ${row.bmi}`);
+  if (row.inbody_score != null) parts.push(`InBody点数 ${row.inbody_score}点`);
+
+  const detailEl = document.createElement("div");
+  detailEl.className = "condition-detail";
+  detailEl.textContent = parts.length > 0 ? parts.join("／") : "記録なし";
+  container.appendChild(detailEl);
+
+  return container;
+}
+
+function renderLatestInBodyCard(latest) {
+  const card = document.getElementById("memberDetailInBodyLatestCard");
+  const emptyEl = document.getElementById("memberDetailInBodyEmpty");
+
+  if (!latest) {
+    card.hidden = true;
+    emptyEl.hidden = false;
+    return;
+  }
+
+  emptyEl.hidden = true;
+  card.hidden = false;
+  document.getElementById("memberDetailInBodyLatestDate").textContent = new Date(
+    latest.measured_at
+  ).toLocaleString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" });
+  document.getElementById("memberDetailInBodyWeight").textContent =
+    latest.weight_kg != null ? `${latest.weight_kg}kg` : "-";
+  document.getElementById("memberDetailInBodyMuscle").textContent =
+    latest.skeletal_muscle_mass_kg != null ? `${latest.skeletal_muscle_mass_kg}kg` : "-";
+  document.getElementById("memberDetailInBodyFatPercent").textContent =
+    latest.body_fat_percentage != null ? `${latest.body_fat_percentage}%` : "-";
+  document.getElementById("memberDetailInBodyBmi").textContent =
+    latest.bmi != null ? `${latest.bmi}` : "-";
+  document.getElementById("memberDetailInBodyScore").textContent =
+    latest.inbody_score != null ? `${latest.inbody_score}点` : "-";
+  document.getElementById("memberDetailInBodyBmr").textContent =
+    latest.basal_metabolic_rate_kcal != null ? `${latest.basal_metabolic_rate_kcal}kcal` : "-";
+}
+
+// team_inbody_sharesを直接SELECTする。inbody共有がOFFの選手についてはRLSが自動的に
+// 0件を返すため、ここでの追加のアクセス制御は不要（member.inbodySharedは表示文言の分岐にのみ使う）
+async function loadMemberInBodyShares(member) {
+  const statusEl = document.getElementById("memberDetailInBodyStatus");
+  const historyList = document.getElementById("memberDetailInBodyHistoryList");
+  historyList.textContent = "";
+
+  if (!member.inbodyShared) {
+    statusEl.textContent = "";
+    appendHintTo("memberDetailInBodyHistoryList", "この選手はInBodyデータの共有をOFFにしています。");
+    renderLatestInBodyCard(null);
+    return;
+  }
+
+  statusEl.style.color = "";
+  setLoadingStatus(statusEl, "取得中...");
+  try {
+    const { data, error } = await client
+      .from("team_inbody_shares")
+      .select(
+        "measured_at, weight_kg, skeletal_muscle_mass_kg, body_fat_mass_kg, body_fat_percentage, bmi, basal_metabolic_rate_kcal, waist_circumference_cm, inbody_score, total_body_water_l, protein_kg, mineral_kg"
+      )
+      .eq("team_id", currentTeamId)
+      .eq("user_id", member.userId)
+      .order("measured_at", { ascending: false })
+      .limit(10);
+    if (error) throw error;
+
+    statusEl.textContent = "";
+    const rows = data || [];
+    if (rows.length === 0) {
+      appendHintTo("memberDetailInBodyHistoryList", "まだ同期されたデータがありません。");
+      renderLatestInBodyCard(null);
+      return;
+    }
+    renderLatestInBodyCard(rows[0]);
+    rows.forEach((row) => historyList.appendChild(buildInBodyRow(row)));
+  } catch (error) {
+    statusEl.style.color = "var(--danger)";
+    statusEl.textContent = "InBodyを取得できませんでした。";
+    renderLatestInBodyCard(null);
+  }
 }
 
 // team_condition_sharesを直接SELECTする。condition共有がOFFの選手・削除済みの選手については
@@ -1770,6 +1920,749 @@ removeMemberBtn.addEventListener("click", async () => {
 });
 
 // ---------------------------------------------------------------------------
+// ホーム：IL登録中人数・本日のトリートメント記録数
+// ---------------------------------------------------------------------------
+// 選手一覧（team_members/team_share_permissions等）とは無関係の別集計のため、
+// loadMembers()とは別の問い合わせとしてloadDashboard()から呼ぶ
+
+async function loadHomeExtraStats(teamId) {
+  const ilCountEl = document.getElementById("statIlCount");
+  const treatmentCountEl = document.getElementById("statTreatmentTodayCount");
+  try {
+    const [ilResult, treatmentResult] = await Promise.all([
+      client
+        .from("team_injury_records")
+        .select("id", { count: "exact", head: true })
+        .eq("team_id", teamId)
+        .in("status", ["il", "rehab", "partial_return"]),
+      client
+        .from("team_treatments")
+        .select("id", { count: "exact", head: true })
+        .eq("team_id", teamId)
+        .eq("treatment_date", todayDateString()),
+    ]);
+    ilCountEl.textContent = ilResult.error ? "-" : `${ilResult.count ?? 0}人`;
+    treatmentCountEl.textContent = treatmentResult.error ? "-" : `${treatmentResult.count ?? 0}件`;
+  } catch (error) {
+    ilCountEl.textContent = "-";
+    treatmentCountEl.textContent = "-";
+  }
+}
+
+// ---------------------------------------------------------------------------
+// トリートメント・ILリスト共通：選手選択セレクトの選択肢
+// ---------------------------------------------------------------------------
+// currentMembersData（loadMembers()が取得済みのactiveメンバー一覧）をそのまま使い、
+// 追加の問い合わせは行わない
+
+function populateMemberSelectOptions() {
+  const selects = [
+    document.getElementById("treatmentMemberSelect"),
+    document.getElementById("ilCreateMemberSelect"),
+  ];
+  selects.forEach((select) => {
+    if (!select) return;
+    const previousValue = select.value;
+    select.textContent = "";
+    if (currentMembersData.length === 0) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "選手がいません";
+      select.appendChild(opt);
+      select.disabled = true;
+      return;
+    }
+    select.disabled = false;
+    currentMembersData.forEach((member) => {
+      const opt = document.createElement("option");
+      opt.value = member.userId;
+      opt.textContent = member.displayName || "未設定";
+      select.appendChild(opt);
+    });
+    if (previousValue && currentMembersData.some((m) => m.userId === previousValue)) {
+      select.value = previousValue;
+    }
+  });
+}
+
+function memberDisplayName(userId) {
+  const member = currentMembersData.find((m) => m.userId === userId);
+  return (member && member.displayName) || "未設定";
+}
+
+// ---------------------------------------------------------------------------
+// トリートメント：人体図（前面／背面、外部ライブラリ不使用の簡易SVGシルエット）
+// ---------------------------------------------------------------------------
+
+const BODY_PART_LABELS = {
+  head_neck: "頭/首",
+  shoulder_left: "肩（左）",
+  shoulder_right: "肩（右）",
+  upper_arm_left: "上腕（左）",
+  upper_arm_right: "上腕（右）",
+  elbow_left: "肘（左）",
+  elbow_right: "肘（右）",
+  forearm_left: "前腕（左）",
+  forearm_right: "前腕（右）",
+  wrist_hand_left: "手首/手（左）",
+  wrist_hand_right: "手首/手（右）",
+  chest: "胸",
+  abdomen: "腹部",
+  upper_back: "上背部",
+  lower_back: "腰部",
+  glutes: "臀部",
+  thigh_front_left: "大腿前面（左）",
+  thigh_front_right: "大腿前面（右）",
+  thigh_back_left: "大腿後面（左）",
+  thigh_back_right: "大腿後面（右）",
+  knee_left: "膝（左）",
+  knee_right: "膝（右）",
+  lower_leg_left: "下腿（左）",
+  lower_leg_right: "下腿（右）",
+  ankle_left: "足首（左）",
+  ankle_right: "足首（右）",
+  foot_left: "足部（左）",
+  foot_right: "足部（右）",
+};
+
+// 前面図・背面図それぞれのクリック可能領域。座標は解剖学的な精密さではなく、タップしやすい
+// おおよそのシルエット配置を目的とする。knee/lower_leg/ankle/footは前後で同じ部位idを使う
+// （spec通り、前後で別idにしない）
+const BODY_MAP_VIEWBOX = "0 0 220 380";
+const FRONT_BODY_SHAPES = [
+  { id: "head_neck", shape: "ellipse", cx: 110, cy: 32, rx: 22, ry: 28 },
+  { id: "shoulder_left", shape: "circle", cx: 68, cy: 78, r: 15 },
+  { id: "shoulder_right", shape: "circle", cx: 152, cy: 78, r: 15 },
+  { id: "chest", shape: "rect", x: 85, y: 68, w: 50, h: 48, rx: 8 },
+  { id: "upper_arm_left", shape: "rect", x: 44, y: 85, w: 22, h: 60, rx: 10 },
+  { id: "upper_arm_right", shape: "rect", x: 154, y: 85, w: 22, h: 60, rx: 10 },
+  { id: "abdomen", shape: "rect", x: 85, y: 118, w: 50, h: 42, rx: 8 },
+  { id: "elbow_left", shape: "circle", cx: 55, cy: 150, r: 12 },
+  { id: "elbow_right", shape: "circle", cx: 165, cy: 150, r: 12 },
+  { id: "forearm_left", shape: "rect", x: 42, y: 158, w: 20, h: 55, rx: 9 },
+  { id: "forearm_right", shape: "rect", x: 158, y: 158, w: 20, h: 55, rx: 9 },
+  { id: "wrist_hand_left", shape: "ellipse", cx: 52, cy: 225, rx: 13, ry: 16 },
+  { id: "wrist_hand_right", shape: "ellipse", cx: 168, cy: 225, rx: 13, ry: 16 },
+  { id: "thigh_front_left", shape: "rect", x: 85, y: 160, w: 24, h: 80, rx: 10 },
+  { id: "thigh_front_right", shape: "rect", x: 111, y: 160, w: 24, h: 80, rx: 10 },
+  { id: "knee_left", shape: "circle", cx: 97, cy: 248, r: 13 },
+  { id: "knee_right", shape: "circle", cx: 123, cy: 248, r: 13 },
+  { id: "lower_leg_left", shape: "rect", x: 87, y: 256, w: 20, h: 70, rx: 9 },
+  { id: "lower_leg_right", shape: "rect", x: 113, y: 256, w: 20, h: 70, rx: 9 },
+  { id: "ankle_left", shape: "circle", cx: 97, cy: 332, r: 10 },
+  { id: "ankle_right", shape: "circle", cx: 123, cy: 332, r: 10 },
+  { id: "foot_left", shape: "ellipse", cx: 93, cy: 353, rx: 14, ry: 9 },
+  { id: "foot_right", shape: "ellipse", cx: 127, cy: 353, rx: 14, ry: 9 },
+];
+const BACK_BODY_SHAPES = [
+  { id: "head_neck", shape: "ellipse", cx: 110, cy: 32, rx: 22, ry: 28 },
+  { id: "shoulder_left", shape: "circle", cx: 68, cy: 78, r: 15 },
+  { id: "shoulder_right", shape: "circle", cx: 152, cy: 78, r: 15 },
+  { id: "upper_back", shape: "rect", x: 85, y: 68, w: 50, h: 45, rx: 8 },
+  { id: "upper_arm_left", shape: "rect", x: 44, y: 85, w: 22, h: 60, rx: 10 },
+  { id: "upper_arm_right", shape: "rect", x: 154, y: 85, w: 22, h: 60, rx: 10 },
+  { id: "lower_back", shape: "rect", x: 85, y: 113, w: 50, h: 40, rx: 8 },
+  { id: "elbow_left", shape: "circle", cx: 55, cy: 150, r: 12 },
+  { id: "elbow_right", shape: "circle", cx: 165, cy: 150, r: 12 },
+  { id: "forearm_left", shape: "rect", x: 42, y: 158, w: 20, h: 55, rx: 9 },
+  { id: "forearm_right", shape: "rect", x: 158, y: 158, w: 20, h: 55, rx: 9 },
+  { id: "glutes", shape: "rect", x: 83, y: 153, w: 54, h: 35, rx: 12 },
+  { id: "wrist_hand_left", shape: "ellipse", cx: 52, cy: 225, rx: 13, ry: 16 },
+  { id: "wrist_hand_right", shape: "ellipse", cx: 168, cy: 225, rx: 13, ry: 16 },
+  { id: "thigh_back_left", shape: "rect", x: 85, y: 188, w: 24, h: 70, rx: 10 },
+  { id: "thigh_back_right", shape: "rect", x: 111, y: 188, w: 24, h: 70, rx: 10 },
+  { id: "knee_left", shape: "circle", cx: 97, cy: 268, r: 13 },
+  { id: "knee_right", shape: "circle", cx: 123, cy: 268, r: 13 },
+  { id: "lower_leg_left", shape: "rect", x: 87, y: 276, w: 20, h: 60, rx: 9 },
+  { id: "lower_leg_right", shape: "rect", x: 113, y: 276, w: 20, h: 60, rx: 9 },
+  { id: "ankle_left", shape: "circle", cx: 97, cy: 342, r: 10 },
+  { id: "ankle_right", shape: "circle", cx: 123, cy: 342, r: 10 },
+  { id: "foot_left", shape: "ellipse", cx: 93, cy: 360, rx: 14, ry: 9 },
+  { id: "foot_right", shape: "ellipse", cx: 127, cy: 360, rx: 14, ry: 9 },
+];
+
+let selectedBodyParts = new Set();
+let bodyMapsInitialized = false;
+
+function buildBodyMapSvg(shapes) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", BODY_MAP_VIEWBOX);
+  svg.setAttribute("class", "body-map-svg");
+  shapes.forEach((def) => {
+    let el;
+    if (def.shape === "circle") {
+      el = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      el.setAttribute("cx", def.cx);
+      el.setAttribute("cy", def.cy);
+      el.setAttribute("r", def.r);
+    } else if (def.shape === "ellipse") {
+      el = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+      el.setAttribute("cx", def.cx);
+      el.setAttribute("cy", def.cy);
+      el.setAttribute("rx", def.rx);
+      el.setAttribute("ry", def.ry);
+    } else {
+      el = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      el.setAttribute("x", def.x);
+      el.setAttribute("y", def.y);
+      el.setAttribute("width", def.w);
+      el.setAttribute("height", def.h);
+      el.setAttribute("rx", def.rx);
+    }
+    el.setAttribute("class", "body-part");
+    el.setAttribute("data-part", def.id);
+    el.setAttribute("tabindex", "0");
+    el.setAttribute("role", "button");
+    const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    title.textContent = BODY_PART_LABELS[def.id] || def.id;
+    el.appendChild(title);
+    el.addEventListener("click", () => toggleBodyPart(def.id));
+    el.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        toggleBodyPart(def.id);
+      }
+    });
+    svg.appendChild(el);
+  });
+  return svg;
+}
+
+function initBodyMapsIfNeeded() {
+  if (bodyMapsInitialized) return;
+  bodyMapsInitialized = true;
+  document.getElementById("bodyMapFront").appendChild(buildBodyMapSvg(FRONT_BODY_SHAPES));
+  document.getElementById("bodyMapBack").appendChild(buildBodyMapSvg(BACK_BODY_SHAPES));
+
+  document.querySelectorAll('[data-body-view]').forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const view = btn.dataset.bodyView;
+      document.querySelectorAll('[data-body-view]').forEach((b) => b.classList.toggle("active", b === btn));
+      document.getElementById("bodyMapFront").hidden = view !== "front";
+      document.getElementById("bodyMapBack").hidden = view !== "back";
+    });
+  });
+}
+
+function toggleBodyPart(partId) {
+  if (selectedBodyParts.has(partId)) {
+    selectedBodyParts.delete(partId);
+  } else {
+    selectedBodyParts.add(partId);
+  }
+  document.querySelectorAll(`.body-part[data-part="${partId}"]`).forEach((el) => {
+    el.classList.toggle("selected", selectedBodyParts.has(partId));
+  });
+  renderSelectedBodyPartsList();
+}
+
+function renderSelectedBodyPartsList() {
+  const container = document.getElementById("selectedBodyPartsList");
+  container.textContent = "";
+  if (selectedBodyParts.size === 0) {
+    const hint = document.createElement("span");
+    hint.className = "hint";
+    hint.textContent = "部位をタップして選択してください";
+    container.appendChild(hint);
+    return;
+  }
+  Array.from(selectedBodyParts).forEach((partId) => {
+    const chip = document.createElement("span");
+    chip.className = "badge-pill selected-part-chip";
+    chip.textContent = BODY_PART_LABELS[partId] || partId;
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "chip-remove";
+    removeBtn.setAttribute("aria-label", `${BODY_PART_LABELS[partId] || partId}を削除`);
+    removeBtn.textContent = "×";
+    removeBtn.addEventListener("click", () => toggleBodyPart(partId));
+    chip.appendChild(removeBtn);
+    container.appendChild(chip);
+  });
+}
+
+function resetTreatmentForm() {
+  selectedBodyParts = new Set();
+  document.querySelectorAll(".body-part.selected").forEach((el) => el.classList.remove("selected"));
+  renderSelectedBodyPartsList();
+  document.getElementById("treatmentTypeInput").value = "";
+  document.getElementById("treatmentNotesInput").value = "";
+  document.getElementById("treatmentDateInput").value = todayDateString();
+}
+
+document.getElementById("treatmentDateInput").value = todayDateString();
+renderSelectedBodyPartsList();
+
+document.getElementById("treatmentMemberSelect").addEventListener("change", loadTreatmentHistory);
+
+document.getElementById("saveTreatmentBtn").addEventListener("click", async () => {
+  const statusEl = document.getElementById("treatmentSaveStatus");
+  const memberSelect = document.getElementById("treatmentMemberSelect");
+  const memberUserId = memberSelect.value;
+  const treatmentDate = document.getElementById("treatmentDateInput").value;
+
+  if (!memberUserId) {
+    statusEl.style.color = "var(--danger)";
+    statusEl.textContent = "選手を選択してください。";
+    return;
+  }
+  if (!treatmentDate) {
+    statusEl.style.color = "var(--danger)";
+    statusEl.textContent = "日付を入力してください。";
+    return;
+  }
+
+  const saveBtn = document.getElementById("saveTreatmentBtn");
+  saveBtn.disabled = true;
+  statusEl.style.color = "";
+  setLoadingStatus(statusEl, "保存中...");
+  try {
+    const { error } = await client.rpc("create_team_treatment", {
+      p_team_id: currentTeamId,
+      p_member_user_id: memberUserId,
+      p_treatment_date: treatmentDate,
+      p_body_parts: Array.from(selectedBodyParts),
+      p_treatment_type: document.getElementById("treatmentTypeInput").value.trim() || null,
+      p_notes: document.getElementById("treatmentNotesInput").value.trim() || null,
+    });
+    if (error) throw error;
+    statusEl.textContent = "";
+    showToast("トリートメント記録を保存しました");
+    resetTreatmentForm();
+    await loadTreatmentHistory();
+    await loadHomeExtraStats(currentTeamId);
+  } catch (error) {
+    statusEl.style.color = "var(--danger)";
+    statusEl.textContent = japaneseRpcErrorMessage(error);
+  } finally {
+    saveBtn.disabled = false;
+  }
+});
+
+async function loadTreatmentHistory() {
+  const memberUserId = document.getElementById("treatmentMemberSelect").value;
+  const statusEl = document.getElementById("treatmentHistoryStatus");
+  const emptyHint = document.getElementById("treatmentHistoryEmptyHint");
+  const listEl = document.getElementById("treatmentHistoryList");
+  listEl.textContent = "";
+  emptyHint.hidden = true;
+
+  if (!memberUserId || !currentTeamId) {
+    statusEl.textContent = "";
+    return;
+  }
+
+  statusEl.style.color = "";
+  setLoadingStatus(statusEl, "取得中...");
+  try {
+    const { data, error } = await client
+      .from("team_treatments")
+      .select("id, treatment_date, body_parts, treatment_type, notes")
+      .eq("team_id", currentTeamId)
+      .eq("member_user_id", memberUserId)
+      .order("treatment_date", { ascending: false })
+      .limit(30);
+    if (error) throw error;
+
+    statusEl.textContent = "";
+    const rows = data || [];
+    if (rows.length === 0) {
+      emptyHint.hidden = false;
+      return;
+    }
+    rows.forEach((row) => {
+      const container = document.createElement("div");
+      container.className = "condition-list-row";
+
+      const dateEl = document.createElement("div");
+      dateEl.className = "condition-date";
+      dateEl.textContent = formatRecordDate(row.treatment_date);
+      container.appendChild(dateEl);
+
+      const parts = (row.body_parts || []).map((p) => BODY_PART_LABELS[p] || p);
+      const detailEl = document.createElement("div");
+      detailEl.className = "condition-detail";
+      const detailPieces = [];
+      if (parts.length > 0) detailPieces.push(parts.join("・"));
+      if (row.treatment_type) detailPieces.push(row.treatment_type);
+      if (row.notes) detailPieces.push(row.notes);
+      detailEl.textContent = detailPieces.length > 0 ? detailPieces.join("／") : "記録なし";
+      container.appendChild(detailEl);
+
+      listEl.appendChild(container);
+    });
+  } catch (error) {
+    statusEl.style.color = "var(--danger)";
+    statusEl.textContent = "トリートメント履歴を取得できませんでした。";
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ILリスト
+// ---------------------------------------------------------------------------
+
+const IL_STATUS_LABEL = {
+  il: "IL",
+  rehab: "リハビリ中",
+  partial_return: "部分復帰",
+  returned: "復帰",
+  closed: "終了",
+};
+
+function ilDaysRemainingText(expectedReturnDate) {
+  if (!expectedReturnDate) return "-";
+  const today = new Date(todayDateString() + "T00:00:00");
+  const target = new Date(expectedReturnDate + "T00:00:00");
+  const diffDays = Math.round((target - today) / (1000 * 60 * 60 * 24));
+  if (diffDays > 0) return `あと${diffDays}日`;
+  if (diffDays === 0) return "本日";
+  return `${Math.abs(diffDays)}日経過`;
+}
+
+let currentIlRecords = [];
+let currentIlDetailRecord = null;
+
+async function loadIlList() {
+  const statusEl = document.getElementById("ilListStatus");
+  const emptyHint = document.getElementById("ilListEmptyHint");
+  const tableWrap = document.getElementById("ilTableWrap");
+  const tbody = document.getElementById("ilTableBody");
+  tbody.textContent = "";
+  emptyHint.hidden = true;
+  tableWrap.hidden = true;
+
+  if (!currentTeamId) return;
+  statusEl.style.color = "";
+  setLoadingStatus(statusEl, "取得中...");
+  try {
+    const { data, error } = await client
+      .from("team_injury_records")
+      .select("id, member_user_id, body_part, description, start_date, expected_return_date, status")
+      .eq("team_id", currentTeamId)
+      .order("start_date", { ascending: false });
+    if (error) throw error;
+
+    statusEl.textContent = "";
+    currentIlRecords = data || [];
+    if (currentIlRecords.length === 0) {
+      emptyHint.hidden = false;
+      return;
+    }
+    tableWrap.hidden = false;
+
+    // 各記録の「現在フェーズ」は復帰プロセスstepのうち、未完了の最初のstep（無ければ最後のstep）
+    const recordIds = currentIlRecords.map((r) => r.id);
+    const { data: stepsData, error: stepsError } = await client
+      .from("team_injury_recovery_steps")
+      .select("id, injury_record_id, title, completed_at, sort_order")
+      .in("injury_record_id", recordIds)
+      .order("sort_order", { ascending: true });
+    if (stepsError) throw stepsError;
+
+    const stepsByRecordId = new Map();
+    (stepsData || []).forEach((step) => {
+      if (!stepsByRecordId.has(step.injury_record_id)) stepsByRecordId.set(step.injury_record_id, []);
+      stepsByRecordId.get(step.injury_record_id).push(step);
+    });
+
+    currentIlRecords.forEach((record) => {
+      const row = document.createElement("tr");
+
+      const nameCell = document.createElement("td");
+      nameCell.className = "member-name-cell";
+      nameCell.textContent = memberDisplayName(record.member_user_id);
+      row.appendChild(nameCell);
+
+      const startCell = document.createElement("td");
+      startCell.textContent = formatRecordDate(record.start_date);
+      row.appendChild(startCell);
+
+      const returnCell = document.createElement("td");
+      returnCell.textContent = record.expected_return_date ? formatRecordDate(record.expected_return_date) : "-";
+      row.appendChild(returnCell);
+
+      const remainingCell = document.createElement("td");
+      remainingCell.textContent = ilDaysRemainingText(record.expected_return_date);
+      row.appendChild(remainingCell);
+
+      const steps = stepsByRecordId.get(record.id) || [];
+      const currentStep = steps.find((s) => !s.completed_at) || steps[steps.length - 1];
+      const phaseCell = document.createElement("td");
+      phaseCell.className = "cell-muted";
+      phaseCell.textContent = currentStep ? currentStep.title : "-";
+      row.appendChild(phaseCell);
+
+      const statusCell = document.createElement("td");
+      const statusBadge = document.createElement("span");
+      statusBadge.className = record.status === "returned" || record.status === "closed"
+        ? "badge-pill badge-gray"
+        : "badge-pill";
+      statusBadge.textContent = IL_STATUS_LABEL[record.status] || record.status;
+      statusCell.appendChild(statusBadge);
+      row.appendChild(statusCell);
+
+      const detailCell = document.createElement("td");
+      const detailLink = document.createElement("span");
+      detailLink.className = "detail-link";
+      detailLink.textContent = "詳細";
+      detailCell.appendChild(detailLink);
+      row.appendChild(detailCell);
+
+      row.addEventListener("click", () => openIlDetail(record));
+      tbody.appendChild(row);
+    });
+  } catch (error) {
+    statusEl.style.color = "var(--danger)";
+    statusEl.textContent = "ILリストを取得できませんでした。";
+  }
+}
+
+document.getElementById("openIlCreateModalBtn").addEventListener("click", () => {
+  document.getElementById("ilCreateStatus").textContent = "";
+  document.getElementById("ilCreateStartDateInput").value = todayDateString();
+  document.getElementById("ilCreateReturnDateInput").value = "";
+  document.getElementById("ilCreateBodyPartInput").value = "";
+  document.getElementById("ilCreateDescriptionInput").value = "";
+  document.getElementById("ilCreateNotesInput").value = "";
+  populateMemberSelectOptions();
+  document.getElementById("ilCreateModalBackdrop").hidden = false;
+  document.getElementById("ilCreateModalPanel").hidden = false;
+});
+
+function closeIlCreateModal() {
+  document.getElementById("ilCreateModalBackdrop").hidden = true;
+  document.getElementById("ilCreateModalPanel").hidden = true;
+}
+document.getElementById("closeIlCreateModalBtn").addEventListener("click", closeIlCreateModal);
+document.getElementById("ilCreateModalBackdrop").addEventListener("click", closeIlCreateModal);
+
+document.getElementById("submitIlCreateBtn").addEventListener("click", async () => {
+  const statusEl = document.getElementById("ilCreateStatus");
+  const memberUserId = document.getElementById("ilCreateMemberSelect").value;
+  const startDate = document.getElementById("ilCreateStartDateInput").value;
+
+  if (!memberUserId) {
+    statusEl.style.color = "var(--danger)";
+    statusEl.textContent = "選手を選択してください。";
+    return;
+  }
+  if (!startDate) {
+    statusEl.style.color = "var(--danger)";
+    statusEl.textContent = "発生日/IL開始日を入力してください。";
+    return;
+  }
+
+  const submitBtn = document.getElementById("submitIlCreateBtn");
+  submitBtn.disabled = true;
+  statusEl.style.color = "";
+  setLoadingStatus(statusEl, "登録中...");
+  try {
+    const { error } = await client.rpc("create_team_injury_record", {
+      p_team_id: currentTeamId,
+      p_member_user_id: memberUserId,
+      p_start_date: startDate,
+      p_body_part: document.getElementById("ilCreateBodyPartInput").value.trim() || null,
+      p_description: document.getElementById("ilCreateDescriptionInput").value.trim() || null,
+      p_expected_return_date: document.getElementById("ilCreateReturnDateInput").value || null,
+      p_notes: document.getElementById("ilCreateNotesInput").value.trim() || null,
+    });
+    if (error) throw error;
+    showToast("ILリストに登録しました");
+    closeIlCreateModal();
+    await loadIlList();
+    await loadHomeExtraStats(currentTeamId);
+  } catch (error) {
+    statusEl.style.color = "var(--danger)";
+    statusEl.textContent = japaneseRpcErrorMessage(error);
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+
+function closeIlDetailModal() {
+  document.getElementById("ilDetailModalBackdrop").hidden = true;
+  document.getElementById("ilDetailModalPanel").hidden = true;
+  currentIlDetailRecord = null;
+}
+document.getElementById("closeIlDetailModalBtn").addEventListener("click", closeIlDetailModal);
+document.getElementById("ilDetailModalBackdrop").addEventListener("click", closeIlDetailModal);
+
+function openIlDetail(record) {
+  currentIlDetailRecord = record;
+  document.getElementById("ilDetailMemberName").textContent = memberDisplayName(record.member_user_id);
+  const badge = document.getElementById("ilDetailStatusBadge");
+  badge.textContent = IL_STATUS_LABEL[record.status] || record.status;
+  badge.classList.toggle("badge-gray", record.status === "returned" || record.status === "closed");
+  document.getElementById("ilDetailBodyPart").textContent = record.body_part || "-";
+  document.getElementById("ilDetailDescription").textContent = record.description || "-";
+  document.getElementById("ilDetailStartDate").textContent = formatRecordDate(record.start_date);
+  document.getElementById("ilDetailDaysRemaining").textContent = ilDaysRemainingText(record.expected_return_date);
+  document.getElementById("ilDetailNotes").textContent = record.notes || "-";
+  document.getElementById("ilDetailStatusSelect").value = record.status;
+  document.getElementById("ilDetailReturnDateInput").value = record.expected_return_date || "";
+  document.getElementById("ilDetailUpdateStatus").textContent = "";
+  document.getElementById("ilStepTitleInput").value = "";
+  document.getElementById("ilStepDateInput").value = "";
+  document.getElementById("ilStepAddStatus").textContent = "";
+
+  document.getElementById("ilDetailModalBackdrop").hidden = false;
+  document.getElementById("ilDetailModalPanel").hidden = false;
+
+  loadIlRecoverySteps(record.id);
+}
+
+document.getElementById("updateIlRecordBtn").addEventListener("click", async () => {
+  if (!currentIlDetailRecord) return;
+  const statusEl = document.getElementById("ilDetailUpdateStatus");
+  const updateBtn = document.getElementById("updateIlRecordBtn");
+  updateBtn.disabled = true;
+  statusEl.style.color = "";
+  setLoadingStatus(statusEl, "更新中...");
+  try {
+    const { error } = await client.rpc("update_team_injury_record", {
+      p_id: currentIlDetailRecord.id,
+      p_status: document.getElementById("ilDetailStatusSelect").value,
+      p_expected_return_date: document.getElementById("ilDetailReturnDateInput").value || null,
+    });
+    if (error) throw error;
+    statusEl.textContent = "";
+    showToast("更新しました");
+    closeIlDetailModal();
+    await loadIlList();
+    await loadHomeExtraStats(currentTeamId);
+  } catch (error) {
+    statusEl.style.color = "var(--danger)";
+    statusEl.textContent = japaneseRpcErrorMessage(error);
+  } finally {
+    updateBtn.disabled = false;
+  }
+});
+
+// 復帰プロセスstepの縦型timeline表示。完了済みはチェック表示、未完了は予定日表示のみ
+// （医学的な復帰判断はしない事実表示のみ）
+function buildRecoveryStepRow(step) {
+  const row = document.createElement("div");
+  row.className = "timeline-row" + (step.completed_at ? " timeline-row-done" : "");
+
+  const marker = document.createElement("div");
+  marker.className = "timeline-marker";
+  marker.textContent = step.completed_at ? "✓" : "";
+  row.appendChild(marker);
+
+  const body = document.createElement("div");
+  body.className = "timeline-body";
+
+  const title = document.createElement("div");
+  title.className = "timeline-title";
+  title.textContent = step.title;
+  body.appendChild(title);
+
+  const meta = document.createElement("div");
+  meta.className = "timeline-meta";
+  if (step.completed_at) {
+    meta.textContent = `完了：${new Date(step.completed_at).toLocaleDateString("ja-JP")}`;
+  } else if (step.scheduled_date) {
+    meta.textContent = `予定日：${formatRecordDate(step.scheduled_date)}`;
+  } else {
+    meta.textContent = "予定日未設定";
+  }
+  body.appendChild(meta);
+
+  if (step.notes) {
+    const notes = document.createElement("div");
+    notes.className = "timeline-notes";
+    notes.textContent = step.notes;
+    body.appendChild(notes);
+  }
+
+  const toggleBtn = document.createElement("button");
+  toggleBtn.type = "button";
+  toggleBtn.className = "secondary btn-inline timeline-toggle-btn";
+  toggleBtn.textContent = step.completed_at ? "未完了に戻す" : "完了にする";
+  toggleBtn.addEventListener("click", () => toggleRecoveryStepCompletion(step));
+  body.appendChild(toggleBtn);
+
+  row.appendChild(body);
+  return row;
+}
+
+async function loadIlRecoverySteps(injuryRecordId) {
+  const container = document.getElementById("ilRecoveryTimeline");
+  container.textContent = "";
+  try {
+    const { data, error } = await client
+      .from("team_injury_recovery_steps")
+      .select("id, title, scheduled_date, completed_at, status, notes, sort_order")
+      .eq("injury_record_id", injuryRecordId)
+      .order("sort_order", { ascending: true });
+    if (error) throw error;
+
+    const steps = data || [];
+    if (steps.length === 0) {
+      const hint = document.createElement("p");
+      hint.className = "hint";
+      hint.textContent = "まだ復帰プロセスのstepがありません。";
+      container.appendChild(hint);
+      return;
+    }
+    steps.forEach((step) => container.appendChild(buildRecoveryStepRow(step)));
+  } catch (error) {
+    const hint = document.createElement("p");
+    hint.className = "hint";
+    hint.textContent = "復帰プロセスを取得できませんでした。";
+    container.appendChild(hint);
+  }
+}
+
+async function toggleRecoveryStepCompletion(step) {
+  if (!currentIlDetailRecord) return;
+  try {
+    const { error } = await client.rpc("update_team_injury_recovery_step", {
+      p_id: step.id,
+      p_completed: !step.completed_at,
+    });
+    if (error) throw error;
+    await loadIlRecoverySteps(currentIlDetailRecord.id);
+    await loadIlList();
+  } catch (error) {
+    showToast(japaneseRpcErrorMessage(error));
+  }
+}
+
+document.getElementById("addIlStepBtn").addEventListener("click", async () => {
+  if (!currentIlDetailRecord) return;
+  const statusEl = document.getElementById("ilStepAddStatus");
+  const title = document.getElementById("ilStepTitleInput").value.trim();
+  if (!title) {
+    statusEl.style.color = "var(--danger)";
+    statusEl.textContent = "step名を入力してください。";
+    return;
+  }
+
+  const addBtn = document.getElementById("addIlStepBtn");
+  addBtn.disabled = true;
+  statusEl.style.color = "";
+  setLoadingStatus(statusEl, "追加中...");
+  try {
+    const { error } = await client.rpc("create_team_injury_recovery_step", {
+      p_injury_record_id: currentIlDetailRecord.id,
+      p_title: title,
+      p_scheduled_date: document.getElementById("ilStepDateInput").value || null,
+    });
+    if (error) throw error;
+    statusEl.textContent = "";
+    document.getElementById("ilStepTitleInput").value = "";
+    document.getElementById("ilStepDateInput").value = "";
+    await loadIlRecoverySteps(currentIlDetailRecord.id);
+  } catch (error) {
+    statusEl.style.color = "var(--danger)";
+    statusEl.textContent = japaneseRpcErrorMessage(error);
+  } finally {
+    addBtn.disabled = false;
+  }
+});
+
+// ---------------------------------------------------------------------------
 // セッション監視
 // ---------------------------------------------------------------------------
 
@@ -1802,7 +2695,15 @@ async function renderForSession(session, event) {
   }
 
   if (!session) {
+    // ログアウト・セッション失効時は、次に別ユーザーがログインした際に前回分のチーム情報が
+    // 一瞬でも表示されないよう、dashboard関連のstateを全て破棄しておく
+    // （表示自体はshowView側でdashboard全体を隠すため二重の安全策）
     currentTeamId = null;
+    currentUserRole = null;
+    currentUserEmail = null;
+    currentTeamName = null;
+    currentMembersData = [];
+    currentDetailMember = null;
 
     // 確認リンクが無効/期限切れ（otp_expired）でセッションが確立しなかった場合、無言で
     // ログイン画面へ戻さず、専用の再送導線を表示する。「ログイン画面に戻る」を押すと

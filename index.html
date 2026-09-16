@@ -22,6 +22,8 @@
   <!-- V-NArishロゴの背景ウォーターマーク。画像自体は一切加工せず、opacityのみ下げて配置する。
        クリック等の操作を妨げないようpointer-events:noneにする -->
   <div class="bg-watermark" aria-hidden="true"></div>
+  <!-- dashboard表示中だけ中央に大きく出す背景ウォーターマーク（ログイン画面用とは別クラス） -->
+  <div class="dashboard-bg-watermark" aria-hidden="true"></div>
 
   <div class="page">
     <main id="app">
@@ -210,6 +212,12 @@
               <button class="team-nav-item" data-team-page="players" type="button">
                 <span class="team-nav-icon" aria-hidden="true">●</span><span>選手</span>
               </button>
+              <button class="team-nav-item" data-team-page="treatment" type="button">
+                <span class="team-nav-icon" aria-hidden="true">✚</span><span>トリートメント</span>
+              </button>
+              <button class="team-nav-item" data-team-page="il" type="button">
+                <span class="team-nav-icon" aria-hidden="true">▲</span><span>ILリスト</span>
+              </button>
               <button class="team-nav-item" data-team-page="team" type="button">
                 <span class="team-nav-icon" aria-hidden="true">◆</span><span>チーム</span>
               </button>
@@ -253,6 +261,14 @@
                   <div class="stat-card">
                     <span class="stat-label">未入力</span>
                     <span class="stat-value" id="statNotInputCount">-</span>
+                  </div>
+                  <div class="stat-card">
+                    <span class="stat-label">IL登録中</span>
+                    <span class="stat-value" id="statIlCount">-</span>
+                  </div>
+                  <div class="stat-card">
+                    <span class="stat-label">本日のトリートメント</span>
+                    <span class="stat-value" id="statTreatmentTodayCount">-</span>
                   </div>
                 </div>
 
@@ -318,6 +334,85 @@
                 </div>
               </section>
 
+              <!-- ============ トリートメント ============ -->
+              <section class="team-page" id="team-page-treatment" hidden>
+                <h1 class="page-heading">トリートメント</h1>
+
+                <div class="card">
+                  <div class="form-row">
+                    <label class="field-label" for="treatmentMemberSelect">選手</label>
+                    <select id="treatmentMemberSelect"></select>
+                  </div>
+                  <div class="form-row">
+                    <label class="field-label" for="treatmentDateInput">日付</label>
+                    <input type="date" id="treatmentDateInput" />
+                  </div>
+
+                  <div class="body-map-row">
+                    <div class="body-map-col">
+                      <div class="body-map-tabs">
+                        <button type="button" class="chart-tab-btn active" data-body-view="front">前面</button>
+                        <button type="button" class="chart-tab-btn" data-body-view="back">背面</button>
+                      </div>
+                      <div id="bodyMapFront" class="body-map-svg-wrap"></div>
+                      <div id="bodyMapBack" class="body-map-svg-wrap" hidden></div>
+                    </div>
+                    <div class="body-map-col">
+                      <span class="field-label">選択中の部位</span>
+                      <div id="selectedBodyPartsList" class="selected-parts-list">
+                        <span class="hint">部位をタップして選択してください</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="form-row">
+                    <label class="field-label" for="treatmentTypeInput">トリートメント内容</label>
+                    <input type="text" id="treatmentTypeInput" placeholder="例：アイシング、テーピング、マッサージ" />
+                  </div>
+                  <div class="form-row">
+                    <label class="field-label" for="treatmentNotesInput">メモ</label>
+                    <textarea id="treatmentNotesInput" rows="3" placeholder="メモ（任意）"></textarea>
+                  </div>
+                  <button id="saveTreatmentBtn" class="btn-inline" type="button">保存</button>
+                  <div id="treatmentSaveStatus" class="status-msg"></div>
+                </div>
+
+                <div class="detail-section-title">過去履歴</div>
+                <div class="card">
+                  <div id="treatmentHistoryStatus" class="status-msg"></div>
+                  <p class="hint" id="treatmentHistoryEmptyHint" hidden>この選手のトリートメント記録はまだありません。</p>
+                  <div id="treatmentHistoryList" class="condition-list"></div>
+                </div>
+              </section>
+
+              <!-- ============ ILリスト ============ -->
+              <section class="team-page" id="team-page-il" hidden>
+                <div class="page-header-row">
+                  <h1 class="page-heading">ILリスト</h1>
+                  <button id="openIlCreateModalBtn" class="btn-inline" type="button">新規登録</button>
+                </div>
+                <div class="card">
+                  <div id="ilListStatus" class="status-msg"></div>
+                  <p class="hint" id="ilListEmptyHint" hidden>現在IL登録されている選手はいません。</p>
+                  <div class="table-scroll" id="ilTableWrap" hidden>
+                    <table class="data-table row-clickable">
+                      <thead>
+                        <tr>
+                          <th>選手名</th>
+                          <th>IL開始日</th>
+                          <th>復帰予定日</th>
+                          <th>残り日数</th>
+                          <th>現在フェーズ</th>
+                          <th>ステータス</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody id="ilTableBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </section>
+
               <!-- ============ チーム ============ -->
               <section class="team-page" id="team-page-team" hidden>
                 <h1 class="page-heading">チーム</h1>
@@ -371,7 +466,7 @@
                   <button id="accountChangePasswordBtn" class="secondary btn-inline" type="button">パスワードを変更</button>
                 </div>
                 <div class="card">
-                  <button id="logoutBtn" class="danger btn-inline" type="button">ログアウト</button>
+                  <button id="accountLogoutBtn" class="danger btn-inline" type="button">ログアウト</button>
                 </div>
               </section>
             </div>
@@ -493,8 +588,146 @@
       <div id="memberDetailConditionStatus" class="status-msg"></div>
       <div id="memberDetailConditionList" class="condition-list"></div>
 
+      <hr class="modal-divider" />
+
+      <div class="detail-section-title">InBody</div>
+      <p class="hint" id="memberDetailInBodyEmpty" hidden>まだ同期されたデータがありません。</p>
+      <div class="latest-condition-grid" id="memberDetailInBodyLatestCard" hidden>
+        <div class="latest-condition-date" id="memberDetailInBodyLatestDate"></div>
+        <div class="latest-condition-item">
+          <span class="latest-condition-label">体重</span>
+          <span class="latest-condition-value" id="memberDetailInBodyWeight">-</span>
+        </div>
+        <div class="latest-condition-item">
+          <span class="latest-condition-label">骨格筋量</span>
+          <span class="latest-condition-value" id="memberDetailInBodyMuscle">-</span>
+        </div>
+        <div class="latest-condition-item">
+          <span class="latest-condition-label">体脂肪率</span>
+          <span class="latest-condition-value" id="memberDetailInBodyFatPercent">-</span>
+        </div>
+        <div class="latest-condition-item">
+          <span class="latest-condition-label">BMI</span>
+          <span class="latest-condition-value" id="memberDetailInBodyBmi">-</span>
+        </div>
+        <div class="latest-condition-item">
+          <span class="latest-condition-label">InBody点数</span>
+          <span class="latest-condition-value" id="memberDetailInBodyScore">-</span>
+        </div>
+        <div class="latest-condition-item">
+          <span class="latest-condition-label">基礎代謝量</span>
+          <span class="latest-condition-value" id="memberDetailInBodyBmr">-</span>
+        </div>
+      </div>
+      <div id="memberDetailInBodyStatus" class="status-msg"></div>
+      <div id="memberDetailInBodyHistoryList" class="condition-list"></div>
+
       <button id="removeMemberBtn" class="danger btn-block" type="button">チームから外す</button>
       <div id="memberDetailActionStatus" class="status-msg"></div>
+    </div>
+
+    <!-- ================= IL新規登録（modal） ================= -->
+    <div class="overlay-backdrop" id="ilCreateModalBackdrop" hidden></div>
+    <div class="card modal" id="ilCreateModalPanel" hidden role="dialog" aria-modal="true" aria-labelledby="ilCreateModalTitle">
+      <div class="modal-header">
+        <h2 id="ilCreateModalTitle">IL新規登録</h2>
+        <button id="closeIlCreateModalBtn" class="secondary" type="button">閉じる</button>
+      </div>
+      <div class="form-row">
+        <label class="field-label" for="ilCreateMemberSelect">選手</label>
+        <select id="ilCreateMemberSelect"></select>
+      </div>
+      <div class="form-row">
+        <label class="field-label" for="ilCreateStartDateInput">発生日/IL開始日</label>
+        <input type="date" id="ilCreateStartDateInput" />
+      </div>
+      <div class="form-row">
+        <label class="field-label" for="ilCreateBodyPartInput">部位</label>
+        <input type="text" id="ilCreateBodyPartInput" placeholder="例：右膝" />
+      </div>
+      <div class="form-row">
+        <label class="field-label" for="ilCreateDescriptionInput">内容</label>
+        <input type="text" id="ilCreateDescriptionInput" placeholder="例：靭帯損傷" />
+      </div>
+      <div class="form-row">
+        <label class="field-label" for="ilCreateReturnDateInput">復帰予定日</label>
+        <input type="date" id="ilCreateReturnDateInput" />
+      </div>
+      <div class="form-row">
+        <label class="field-label" for="ilCreateNotesInput">メモ</label>
+        <textarea id="ilCreateNotesInput" rows="3" placeholder="メモ（任意）"></textarea>
+      </div>
+      <button id="submitIlCreateBtn" class="btn-block" type="button">登録</button>
+      <div id="ilCreateStatus" class="status-msg"></div>
+    </div>
+
+    <!-- ================= IL詳細（modal） ================= -->
+    <div class="overlay-backdrop" id="ilDetailModalBackdrop" hidden></div>
+    <div class="card modal" id="ilDetailModalPanel" hidden role="dialog" aria-modal="true" aria-labelledby="ilDetailMemberName">
+      <div class="modal-header">
+        <div>
+          <h2 id="ilDetailMemberName">-</h2>
+          <span class="badge-pill" id="ilDetailStatusBadge">-</span>
+        </div>
+        <button id="closeIlDetailModalBtn" class="secondary" type="button">閉じる</button>
+      </div>
+
+      <div class="field-row">
+        <span class="field-label">部位</span>
+        <span id="ilDetailBodyPart" class="value">-</span>
+      </div>
+      <div class="field-row">
+        <span class="field-label">内容</span>
+        <span id="ilDetailDescription" class="value">-</span>
+      </div>
+      <div class="field-row">
+        <span class="field-label">IL開始日</span>
+        <span id="ilDetailStartDate" class="value">-</span>
+      </div>
+      <div class="field-row">
+        <span class="field-label">復帰予定まで</span>
+        <span id="ilDetailDaysRemaining" class="value">-</span>
+      </div>
+      <div class="field-row">
+        <span class="field-label">メモ</span>
+        <span id="ilDetailNotes" class="value">-</span>
+      </div>
+
+      <hr class="modal-divider" />
+
+      <div class="detail-section-title">ステータス・復帰予定日を編集</div>
+      <div class="form-row">
+        <label class="field-label" for="ilDetailStatusSelect">ステータス</label>
+        <select id="ilDetailStatusSelect">
+          <option value="il">IL</option>
+          <option value="rehab">リハビリ中</option>
+          <option value="partial_return">部分復帰</option>
+          <option value="returned">復帰</option>
+          <option value="closed">終了</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="field-label" for="ilDetailReturnDateInput">復帰予定日</label>
+        <input type="date" id="ilDetailReturnDateInput" />
+      </div>
+      <button id="updateIlRecordBtn" class="secondary btn-block" type="button">更新</button>
+      <div id="ilDetailUpdateStatus" class="status-msg"></div>
+
+      <hr class="modal-divider" />
+
+      <div class="detail-section-title">復帰プロセス</div>
+      <div id="ilRecoveryTimeline" class="recovery-timeline"></div>
+
+      <div class="form-row">
+        <label class="field-label" for="ilStepTitleInput">新しいstep</label>
+        <input type="text" id="ilStepTitleInput" placeholder="例：Phase 2 リハビリ" />
+      </div>
+      <div class="form-row">
+        <label class="field-label" for="ilStepDateInput">予定日</label>
+        <input type="date" id="ilStepDateInput" />
+      </div>
+      <button id="addIlStepBtn" class="secondary btn-block" type="button">stepを追加</button>
+      <div id="ilStepAddStatus" class="status-msg"></div>
     </div>
   </div>
 

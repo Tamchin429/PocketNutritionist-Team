@@ -54,11 +54,36 @@ body {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image: url("v-narish-logo.png");
+  background-image: url("assets/v-narish-logo.png");
   background-repeat: no-repeat;
   background-position: center 145px;
   background-size: 165px;
   opacity: 0.035;
+}
+
+/* ログイン後（dashboard）専用の背景ウォーターマーク。ログイン画面用の.bg-watermarkとは
+   配置・サイズ・opacityの要件が大きく異なる（画面中央・大サイズ・より薄い）ため、
+   同じクラスを無理に共用せず別クラスとして扱う。画像自体は同じファイル・無加工。
+   表示はbody.app-shell-active時のみ（dashboard表示中のみ）。 */
+.dashboard-bg-watermark {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: url("assets/v-narish-logo.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: clamp(900px, 66vw, 1650px);
+  opacity: 0.022;
+}
+
+body.app-shell-active .bg-watermark {
+  display: none;
+}
+
+body.app-shell-active .dashboard-bg-watermark {
+  display: block;
 }
 
 @media (max-width: 768px) {
@@ -67,11 +92,21 @@ body {
     background-size: 140px;
     opacity: 0.03;
   }
+
+  .dashboard-bg-watermark {
+    background-size: clamp(560px, 92vw, 900px);
+    opacity: 0.018;
+  }
 }
 
 @media (max-width: 480px) {
   .bg-watermark {
     opacity: 0;
+  }
+
+  .dashboard-bg-watermark {
+    background-size: clamp(340px, 96vw, 520px);
+    opacity: 0.014;
   }
 
   /* 選手詳細等のmodalは狭い画面ではほぼ全画面表示にする */
@@ -175,7 +210,10 @@ label {
 
 input[type="text"],
 input[type="email"],
-input[type="password"] {
+input[type="password"],
+input[type="date"],
+select,
+textarea {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--border);
@@ -184,14 +222,28 @@ input[type="password"] {
   background: #fff;
   color: var(--text);
   margin-bottom: 4px;
+  font-family: inherit;
 }
 
 input[type="text"]:focus,
 input[type="email"]:focus,
-input[type="password"]:focus {
+input[type="password"]:focus,
+input[type="date"]:focus,
+select:focus,
+textarea:focus {
   outline: none;
   border-color: var(--blue);
   box-shadow: 0 0 0 3px var(--blue-soft);
+}
+
+/* トリートメント・IL登録フォーム等、ラベル＋入力欄を縦に並べるだけの汎用行
+   （.field-rowはラベル＋値の横並び表示専用のため、入力欄用にはこちらを使う） */
+.form-row {
+  margin-bottom: 12px;
+}
+.form-row .field-label {
+  display: block;
+  margin-bottom: 4px;
 }
 
 /* ---------- ボタン ---------- */
@@ -820,9 +872,10 @@ button.btn-inline {
 
 /* ---------- ホーム：統計カード ---------- */
 
+/* 6枚（IL登録中・本日のトリートメントを追加）を無理に横一列にせず、3列×2段にする */
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 14px;
   margin-bottom: 20px;
 }
@@ -1131,5 +1184,148 @@ button.btn-inline {
 
   .latest-condition-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ---------- トリートメント：人体図（外部ライブラリ不使用の簡易SVG） ---------- */
+
+.body-map-row {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin: 12px 0 16px;
+}
+
+.body-map-col {
+  flex: 1 1 220px;
+  min-width: 220px;
+}
+
+.body-map-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.body-map-svg-wrap {
+  max-width: 240px;
+  margin: 0 auto;
+}
+
+.body-map-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.body-part {
+  fill: var(--blue-soft);
+  stroke: var(--blue);
+  stroke-width: 1.5;
+  cursor: pointer;
+  transition: fill 0.12s ease;
+}
+
+.body-part:hover {
+  fill: #d7ebff;
+}
+
+.body-part:focus-visible {
+  outline: 2px solid var(--blue-dark);
+  outline-offset: 2px;
+}
+
+.body-part.selected {
+  fill: var(--blue);
+  stroke: var(--blue-dark);
+}
+
+.selected-parts-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.selected-part-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chip-remove {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 0 0 4px;
+  cursor: pointer;
+  min-height: auto;
+}
+
+/* ---------- IL：復帰プロセス縦型timeline ---------- */
+
+.recovery-timeline {
+  margin: 8px 0 16px;
+}
+
+.timeline-row {
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+  border-left: 2px solid var(--border);
+  margin-left: 11px;
+  padding-left: 16px;
+}
+
+.timeline-row:last-child {
+  border-left-color: transparent;
+}
+
+.timeline-marker {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--card-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--success);
+  margin-left: -23px;
+}
+
+.timeline-row-done .timeline-marker {
+  border-color: var(--success);
+}
+
+.timeline-title {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.timeline-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.timeline-notes {
+  font-size: 13px;
+  margin-top: 4px;
+  white-space: pre-wrap;
+}
+
+.timeline-toggle-btn {
+  margin-top: 6px;
+}
+
+@media (max-width: 480px) {
+  .body-map-row {
+    flex-direction: column;
   }
 }
