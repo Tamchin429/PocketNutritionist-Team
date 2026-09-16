@@ -54,16 +54,18 @@ body {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image: url("assets/v-narish-logo.png");
+  background-image: url("v-narish-logo.png");
   background-repeat: no-repeat;
-  background-position: right 3% bottom 5%;
-  background-size: 620px;
-  opacity: 0.04;
+  /* 上部の「PocketNutritionist Team」と中央の「PocketNutritionist」の間に配置 */
+  background-position: center 175px;
+  background-size: 220px;
+  opacity: 0.035;
 }
 
 @media (max-width: 768px) {
   .bg-watermark {
-    background-size: 380px;
+    background-position: center 145px;
+    background-size: 180px;
     opacity: 0.03;
   }
 }
