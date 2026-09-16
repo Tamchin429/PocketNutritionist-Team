@@ -2142,6 +2142,63 @@ function initBodyMapsIfNeeded() {
       document.getElementById("bodyMapBack").hidden = view !== "back";
     });
   });
+
+  // トリートメント詳細（表示専用）側の前面/背面タブ。data属性名を新規登録側
+  // （data-body-view）と分け、既存のタブ切り替えリスナーと衝突しないようにする
+  document.querySelectorAll('[data-detail-body-view]').forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const view = btn.dataset.detailBodyView;
+      document.querySelectorAll('[data-detail-body-view]').forEach((b) => b.classList.toggle("active", b === btn));
+      document.getElementById("treatmentDetailBodyMapFront").hidden = view !== "front";
+      document.getElementById("treatmentDetailBodyMapBack").hidden = view !== "back";
+    });
+  });
+}
+
+// トリートメント詳細（表示専用）：新規登録で使っている#bodyMapFront/#bodyMapBackの
+// SVG（buildBodyMapSvgで生成済み）をそのまま複製して使う。新しい人体図は作らない。
+// cloneNode()はJSのイベントリスナーをコピーしないため、これだけでクリック操作は
+// 効かなくなる。念のためtabindex/roleも外し、CSS側でもpointer-events:noneにする
+function renderReadOnlyBodyMap(sourceWrapId, targetWrapId, selectedParts) {
+  const sourceSvg = document.querySelector(`#${sourceWrapId} .body-map-svg`);
+  const targetWrap = document.getElementById(targetWrapId);
+  targetWrap.textContent = "";
+  if (!sourceSvg) return;
+
+  const clone = sourceSvg.cloneNode(true);
+  clone.classList.add("body-map-svg-readonly");
+  clone.querySelectorAll(".body-part").forEach((el) => {
+    el.removeAttribute("tabindex");
+    el.removeAttribute("role");
+    const partId = el.getAttribute("data-part");
+    el.classList.toggle("selected", selectedParts.has(partId));
+  });
+  targetWrap.appendChild(clone);
+}
+
+// 選択部位が前面/背面のどちらにあるかをタブのラベルに件数で出し、両方に該当がある場合も
+// 一目で分かるようにする（前面のみ選択部位がある場合はfrontを、背面のみの場合はbackを
+// 初期表示にする）
+function renderTreatmentDetailBodyMap(bodyParts) {
+  const selectedParts = new Set(bodyParts || []);
+  renderReadOnlyBodyMap("bodyMapFront", "treatmentDetailBodyMapFront", selectedParts);
+  renderReadOnlyBodyMap("bodyMapBack", "treatmentDetailBodyMapBack", selectedParts);
+
+  const frontCount = FRONT_BODY_SHAPES.filter((s) => selectedParts.has(s.id)).length;
+  const backCount = BACK_BODY_SHAPES.filter((s) => selectedParts.has(s.id)).length;
+
+  const frontTab = document.querySelector('[data-detail-body-view="front"]');
+  const backTab = document.querySelector('[data-detail-body-view="back"]');
+  frontTab.textContent = frontCount > 0 ? `前面 (${frontCount})` : "前面";
+  backTab.textContent = backCount > 0 ? `背面 (${backCount})` : "背面";
+
+  // 前面に該当が無く背面のみに該当がある場合だけ、初期表示を背面にする
+  const initialView = frontCount === 0 && backCount > 0 ? "back" : "front";
+  document.querySelectorAll('[data-detail-body-view]').forEach((b) => {
+    b.classList.toggle("active", b.dataset.detailBodyView === initialView);
+  });
+  document.getElementById("treatmentDetailBodyMapFront").hidden = initialView !== "front";
+  document.getElementById("treatmentDetailBodyMapBack").hidden = initialView !== "back";
 }
 
 function toggleBodyPart(partId) {
@@ -2273,12 +2330,16 @@ async function loadTreatmentHistory() {
   const listEl = document.getElementById("treatmentHistoryList");
   listEl.textContent = "";
   emptyHint.hidden = true;
+  // .status-msgはmin-height/margin-topを持つため、メッセージが無い間はhiddenにして
+  // 一覧カード上部に空白の帯（一見「不要な線」のように見える余白）を残さないようにする
+  statusEl.hidden = true;
+  statusEl.textContent = "";
 
   if (!currentTeamId) {
-    statusEl.textContent = "";
     return;
   }
 
+  statusEl.hidden = false;
   statusEl.style.color = "";
   setLoadingStatus(statusEl, "取得中...");
   try {
@@ -2291,6 +2352,7 @@ async function loadTreatmentHistory() {
       .limit(100);
     if (error) throw error;
 
+    statusEl.hidden = true;
     statusEl.textContent = "";
     currentTreatmentRecords = data || [];
     if (currentTreatmentRecords.length === 0) {
@@ -2299,6 +2361,7 @@ async function loadTreatmentHistory() {
     }
     currentTreatmentRecords.forEach((row) => listEl.appendChild(buildTreatmentListRow(row)));
   } catch (error) {
+    statusEl.hidden = false;
     statusEl.style.color = "var(--danger)";
     statusEl.textContent = "トリートメント履歴を取得できませんでした。";
   }
@@ -2361,6 +2424,11 @@ document.getElementById("closeTreatmentDetailModalBtn").addEventListener("click"
 document.getElementById("treatmentDetailModalBackdrop").addEventListener("click", closeTreatmentDetailModal);
 
 function openTreatmentDetail(row) {
+  // 新規登録側の人体図SVGがまだ生成されていない場合に備え、複製元を先に用意する
+  // （bodyMapsInitializedにより2回目以降は何もしない）
+  initBodyMapsIfNeeded();
+  renderTreatmentDetailBodyMap(row.body_parts);
+
   document.getElementById("treatmentDetailMemberName").textContent = memberDisplayName(row.member_user_id);
   document.getElementById("treatmentDetailDate").textContent = formatRecordDate(row.treatment_date);
   const parts = (row.body_parts || []).map((p) => BODY_PART_LABELS[p] || p);

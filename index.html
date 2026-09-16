@@ -342,7 +342,7 @@
                 </div>
 
                 <div class="card">
-                  <div id="treatmentHistoryStatus" class="status-msg"></div>
+                  <div id="treatmentHistoryStatus" class="status-msg" hidden></div>
                   <p class="hint" id="treatmentHistoryEmptyHint" hidden>トリートメント記録はまだありません。</p>
                   <div id="treatmentHistoryList" class="treatment-list"></div>
                 </div>
@@ -645,6 +645,15 @@
         <h2 id="treatmentDetailMemberName">-</h2>
         <button id="closeTreatmentDetailModalBtn" class="secondary" type="button">閉じる</button>
       </div>
+
+      <!-- 表示専用の人体図。新規登録と同じSVG（buildBodyMapSvg）を複製して使う（作り直さない）。
+           クリックでの部位変更はできない（tabindex/roleを外し、pointer-eventsも無効化） -->
+      <div class="body-map-tabs" id="treatmentDetailBodyMapTabs">
+        <button type="button" class="chart-tab-btn active" data-detail-body-view="front">前面</button>
+        <button type="button" class="chart-tab-btn" data-detail-body-view="back">背面</button>
+      </div>
+      <div id="treatmentDetailBodyMapFront" class="body-map-svg-wrap body-map-svg-wrap-readonly"></div>
+      <div id="treatmentDetailBodyMapBack" class="body-map-svg-wrap body-map-svg-wrap-readonly" hidden></div>
 
       <div class="field-row">
         <span class="field-label">日付</span>

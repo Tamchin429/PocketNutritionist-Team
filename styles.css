@@ -1393,3 +1393,15 @@ button.btn-inline {
 .modal-action-row button {
   flex: 1;
 }
+
+/* ---------- トリートメント詳細：表示専用の人体図（新規登録と同じSVGを複製） ---------- */
+
+.body-map-svg-wrap-readonly {
+  max-width: 170px;
+  margin: 0 auto 12px;
+}
+
+.body-map-svg-readonly .body-part {
+  cursor: default;
+  pointer-events: none;
+}
