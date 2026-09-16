@@ -1755,18 +1755,6 @@ document.querySelectorAll("#chartTabs .chart-tab-btn").forEach((btn) => {
   });
 });
 
-function appendHintTo(containerId, text) {
-  const container = document.getElementById(containerId);
-  const note = document.createElement("p");
-  note.className = "hint";
-  note.textContent = text;
-  container.appendChild(note);
-}
-
-function appendConditionHint(text) {
-  appendHintTo("memberDetailConditionList", text);
-}
-
 // ---------------------------------------------------------------------------
 // 選手詳細：InBody（チーム共有 Phase 4）
 // ---------------------------------------------------------------------------
@@ -1887,7 +1875,9 @@ async function loadMemberConditionShares(member) {
 
   if (!member.conditionShared) {
     memberDetailConditionStatus.textContent = "";
-    appendConditionHint("この選手はコンディション共有をOFFにしています。");
+    document.getElementById("memberDetailLatestEmptyTitle").textContent = "コンディション共有OFF";
+    document.getElementById("memberDetailLatestEmptyDesc").textContent =
+      "この選手はコンディション共有をOFFにしています。";
     renderLatestConditionCard(null);
     renderConditionSummaryAndChart([]);
     return;
@@ -1910,7 +1900,9 @@ async function loadMemberConditionShares(member) {
     memberDetailConditionStatus.textContent = "";
     const rows = data || [];
     if (rows.length === 0) {
-      appendConditionHint("まだ同期されたデータがありません。");
+      document.getElementById("memberDetailLatestEmptyTitle").textContent = "まだ同期されたデータがありません";
+      document.getElementById("memberDetailLatestEmptyDesc").textContent =
+        "選手がコンディションを記録すると、ここに表示されます。";
       renderLatestConditionCard(null);
       renderConditionSummaryAndChart([]);
       return;

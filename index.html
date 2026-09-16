@@ -8,8 +8,8 @@
   <meta name="robots" content="noindex,nofollow" />
   <meta name="description" content="PocketNutritionist チーム管理" />
   <title>PocketNutritionist Team</title>
-  <!-- v=11: ホームstat cardラベル文言変更（共有中→コンディション） -->
-  <link rel="stylesheet" href="styles.css?v=11" />
+  <!-- v=12: UI最終仕上げ（横幅バランス・modal幅/2column・metric統一・timeline位置修正・不要CSS整理） -->
+  <link rel="stylesheet" href="styles.css?v=12" />
 </head>
 <body>
   <!-- 共通inline SVGアイコンsprite。外部アイコンライブラリ/CDNは使わず、この<symbol>群だけを
@@ -600,7 +600,7 @@
 
     <!-- ================= 選手詳細（modal） ================= -->
     <div class="overlay-backdrop" id="memberDetailBackdrop" hidden></div>
-    <div class="card modal" id="memberDetailPanel" hidden role="dialog" aria-modal="true" aria-labelledby="memberDetailName">
+    <div class="card modal modal-wide" id="memberDetailPanel" hidden role="dialog" aria-modal="true" aria-labelledby="memberDetailName">
       <div class="modal-header">
         <div class="modal-header-identity">
           <span class="avatar-circle avatar-circle-sm" id="memberDetailAvatar" aria-hidden="true">-</span>
@@ -633,7 +633,11 @@
       <hr class="modal-divider" />
 
       <div class="detail-section-title">今日のコンディション</div>
-      <p class="hint" id="memberDetailLatestEmpty" hidden>まだ同期されたデータがありません。</p>
+      <div class="empty-state empty-state-compact" id="memberDetailLatestEmpty" hidden>
+        <span class="empty-state-icon"><svg class="icon" aria-hidden="true"><use href="#icon-share"></use></svg></span>
+        <p class="empty-state-title" id="memberDetailLatestEmptyTitle">まだ同期されたデータがありません</p>
+        <p class="empty-state-desc" id="memberDetailLatestEmptyDesc">選手がコンディションを記録すると、ここに表示されます。</p>
+      </div>
       <div class="latest-condition-grid" id="memberDetailLatestCard" hidden>
         <div class="latest-condition-date" id="memberDetailLatestDate"></div>
         <div class="latest-condition-item">
@@ -701,7 +705,7 @@
 
       <div class="detail-section-title">InBody</div>
       <p class="detail-section-desc">身体組成の主要指標（最新測定値）</p>
-      <div class="empty-state" id="memberDetailInBodyEmpty" hidden>
+      <div class="empty-state empty-state-compact" id="memberDetailInBodyEmpty" hidden>
         <span class="empty-state-icon"><svg class="icon" aria-hidden="true"><use href="#icon-account"></use></svg></span>
         <p class="empty-state-title" id="memberDetailInBodyEmptyTitle">まだ同期されたデータがありません</p>
         <p class="empty-state-desc" id="memberDetailInBodyEmptyDesc">選手がInBody共有をONにすると、ここに表示されます。</p>
@@ -791,7 +795,7 @@
 
     <!-- ================= トリートメント詳細（modal） ================= -->
     <div class="overlay-backdrop" id="treatmentDetailModalBackdrop" hidden></div>
-    <div class="card modal" id="treatmentDetailModalPanel" hidden role="dialog" aria-modal="true" aria-labelledby="treatmentDetailMemberName">
+    <div class="card modal modal-wide" id="treatmentDetailModalPanel" hidden role="dialog" aria-modal="true" aria-labelledby="treatmentDetailMemberName">
       <div class="modal-header">
         <h2 id="treatmentDetailMemberName">-</h2>
         <button id="closeTreatmentDetailModalBtn" class="secondary" type="button">閉じる</button>
@@ -804,36 +808,41 @@
 
       <hr class="modal-divider" />
 
-      <!-- 表示専用の人体図。新規登録と同じSVG（buildBodyMapSvg）を複製して使う（作り直さない）。
-           クリックでの部位変更はできない（tabindex/roleを外し、pointer-eventsも無効化） -->
-      <div class="body-map-tabs" id="treatmentDetailBodyMapTabs">
-        <button type="button" class="chart-tab-btn active" data-detail-body-view="front">前面</button>
-        <button type="button" class="chart-tab-btn" data-detail-body-view="back">背面</button>
-      </div>
-      <div id="treatmentDetailBodyMapFront" class="body-map-svg-wrap body-map-svg-wrap-readonly"></div>
-      <div id="treatmentDetailBodyMapBack" class="body-map-svg-wrap body-map-svg-wrap-readonly" hidden></div>
-      <div class="selected-parts-list" id="treatmentDetailBodyParts"></div>
+      <!-- desktopでは左：人体図／右：詳細の2column、mobileでは縦stackにする -->
+      <div class="treatment-detail-columns">
+        <div class="treatment-detail-col-map">
+          <!-- 表示専用の人体図。新規登録と同じSVG（buildBodyMapSvg）を複製して使う（作り直さない）。
+               クリックでの部位変更はできない（tabindex/roleを外し、pointer-eventsも無効化） -->
+          <div class="body-map-tabs" id="treatmentDetailBodyMapTabs">
+            <button type="button" class="chart-tab-btn active" data-detail-body-view="front">前面</button>
+            <button type="button" class="chart-tab-btn" data-detail-body-view="back">背面</button>
+          </div>
+          <div id="treatmentDetailBodyMapFront" class="body-map-svg-wrap body-map-svg-wrap-readonly"></div>
+          <div id="treatmentDetailBodyMapBack" class="body-map-svg-wrap body-map-svg-wrap-readonly" hidden></div>
+          <div class="selected-parts-list" id="treatmentDetailBodyParts"></div>
+        </div>
 
-      <hr class="modal-divider" />
+        <div class="treatment-detail-col-info">
+          <div class="field-row">
+            <span class="field-label">トリートメント内容</span>
+            <span id="treatmentDetailType" class="value">-</span>
+          </div>
+          <div class="field-row">
+            <span class="field-label">メモ</span>
+            <span id="treatmentDetailNotes" class="value">-</span>
+          </div>
 
-      <div class="field-row">
-        <span class="field-label">トリートメント内容</span>
-        <span id="treatmentDetailType" class="value">-</span>
-      </div>
-      <div class="field-row">
-        <span class="field-label">メモ</span>
-        <span id="treatmentDetailNotes" class="value">-</span>
-      </div>
+          <hr class="modal-divider" />
 
-      <hr class="modal-divider" />
-
-      <div class="field-row">
-        <span class="field-label">記録者</span>
-        <span id="treatmentDetailRecordedBy" class="value value-secondary">-</span>
-      </div>
-      <div class="field-row">
-        <span class="field-label">登録日時</span>
-        <span id="treatmentDetailCreatedAt" class="value value-secondary">-</span>
+          <div class="field-row">
+            <span class="field-label">記録者</span>
+            <span id="treatmentDetailRecordedBy" class="value value-secondary">-</span>
+          </div>
+          <div class="field-row">
+            <span class="field-label">登録日時</span>
+            <span id="treatmentDetailCreatedAt" class="value value-secondary">-</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -874,7 +883,7 @@
 
     <!-- ================= IL詳細（modal） ================= -->
     <div class="overlay-backdrop" id="ilDetailModalBackdrop" hidden></div>
-    <div class="card modal" id="ilDetailModalPanel" hidden role="dialog" aria-modal="true" aria-labelledby="ilDetailMemberName">
+    <div class="card modal modal-wide" id="ilDetailModalPanel" hidden role="dialog" aria-modal="true" aria-labelledby="ilDetailMemberName">
       <div class="modal-header">
         <h2 id="ilDetailMemberName">-</h2>
         <button id="closeIlDetailModalBtn" class="secondary" type="button">閉じる</button>
@@ -954,6 +963,6 @@
   <!-- app.jsはこれまでバージョンクエリを付けていなかったため、GitHub Pages/ブラウザに
        古いapp.jsがキャッシュされたまま残る可能性があった。styles.cssと同じ方式で
        クエリを付け、コード変更時は必ずこの数値を上げる（v=1から開始） -->
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

@@ -337,10 +337,13 @@ button.btn-inline {
 .field-row .field-label {
   color: var(--text-secondary);
   font-size: 13px;
+  flex-shrink: 0;
 }
 
 .field-row .value {
   font-weight: 600;
+  min-width: 0;
+  text-align: right;
 }
 
 .invite-code-row {
@@ -589,6 +592,12 @@ button.btn-inline {
   box-shadow: 0 20px 60px rgba(17, 24, 39, 0.25);
 }
 
+/* 選手詳細・Treatment詳細・IL詳細は情報量が多く440pxだと縦に間延びするため、
+   desktopだけ少し広くする（mobileはmax-width:92vwのまま変わらない） */
+.modal-wide {
+  width: 600px;
+}
+
 .modal-header {
   display: flex;
   align-items: flex-start;
@@ -660,6 +669,9 @@ button.btn-inline {
 .latest-condition-item {
   display: flex;
   flex-direction: column;
+  gap: 2px;
+  min-height: 38px;
+  justify-content: center;
 }
 
 .latest-condition-label {
@@ -668,7 +680,7 @@ button.btn-inline {
 }
 
 .latest-condition-value {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
 }
 
@@ -835,8 +847,9 @@ button.btn-inline {
 
 .team-content {
   padding: 24px 28px 60px;
-  max-width: 1080px;
+  max-width: 1200px;
   width: 100%;
+  margin: 0 auto;
 }
 
 .team-page[hidden] {
@@ -943,17 +956,6 @@ button.btn-inline {
   text-overflow: ellipsis;
 }
 
-.account-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.account-actions button {
-  flex: 1;
-  min-width: 160px;
-}
-
 /* =====================================================================
    選手・コンディション：疲労度／睡眠／本日入力バッジ
    （ホームの選手コンディション表・選手一覧テーブルの両方で共通利用する）
@@ -1048,16 +1050,18 @@ button.btn-inline {
   padding: 8px 10px;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 2px;
+  min-height: 54px;
 }
 
 .summary-label {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-secondary);
 }
 
 .summary-value {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
 }
 
@@ -1327,7 +1331,7 @@ button.btn-inline {
   font-size: 12px;
   font-weight: 700;
   color: var(--success);
-  margin-left: -23px;
+  margin-left: -28px;
 }
 
 .timeline-row-done .timeline-marker {
@@ -1403,11 +1407,6 @@ button.btn-inline {
   font-weight: 700;
 }
 
-.treatment-list-parts {
-  font-size: 13px;
-  margin-bottom: 2px;
-}
-
 .treatment-list-type {
   font-size: 13px;
   color: var(--text-secondary);
@@ -1430,6 +1429,38 @@ button.btn-inline {
 .body-map-svg-wrap-readonly {
   max-width: 170px;
   margin: 0 auto 12px;
+}
+
+/* Treatment詳細：desktopでは左=人体図／右=詳細の2column、mobileでは縦stack。
+   人体図側は幅を固定して主役になりすぎないようにし、詳細側に幅を残す */
+.treatment-detail-columns {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.treatment-detail-col-map {
+  flex: 0 0 190px;
+}
+
+.treatment-detail-col-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.treatment-detail-col-info .modal-divider {
+  margin: 10px 0;
+}
+
+@media (max-width: 640px) {
+  .treatment-detail-columns {
+    flex-direction: column;
+  }
+
+  .treatment-detail-col-map {
+    flex-basis: auto;
+    width: 100%;
+  }
 }
 
 .body-map-svg-readonly .body-part {
@@ -1636,16 +1667,18 @@ textarea:focus-visible,
 
 /* ---------- ホーム：今日の状況（既存stat値の要約表示のみ、新規取得なし） ---------- */
 
+/* 「大きなカード」ではなく軽いsummary barとして見せる：stat cardより低い高さ・
+   小さめのradius・薄いshadowにして、下のstat-grid（詳細な内訳）と情報の強弱を分ける */
 .today-overview {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 20px;
   background: var(--card-bg);
   border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  padding: 14px 20px;
+  border-radius: 12px;
+  box-shadow: none;
+  padding: 10px 18px;
   margin-bottom: 20px;
 }
 
@@ -1663,7 +1696,7 @@ textarea:focus-visible,
 }
 
 .today-overview-value {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 800;
   color: var(--text);
 }
@@ -1740,6 +1773,23 @@ textarea:focus-visible,
   max-width: 320px;
 }
 
+/* modal内の1セクション分だけを占めるempty state（選手詳細のコンディション/InBody等）は、
+   ページ全体のempty state（履歴なし/ILなし等）より余白を抑える */
+.empty-state-compact {
+  padding: 20px 12px;
+}
+
+.empty-state-compact .empty-state-icon {
+  width: 36px;
+  height: 36px;
+  margin-bottom: 2px;
+}
+
+.empty-state-compact .empty-state-icon .icon {
+  width: 18px;
+  height: 18px;
+}
+
 /* ---------- 選手詳細modal：header（avatar付き）・section説明文 ---------- */
 
 .modal-header-identity {
@@ -1786,16 +1836,18 @@ textarea:focus-visible,
 
 .treatment-list-footer {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 10px;
   margin-top: 2px;
 }
 
 .treatment-list-footer .treatment-list-type {
+  /* 内容は最大2行まで（それ以上は省略）。メモ全文は一覧に出さない方針は維持 */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   min-width: 0;
   flex: 1;
 }
@@ -1891,7 +1943,9 @@ textarea:focus-visible,
 .il-summary-item {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 2px;
+  min-height: 38px;
 }
 
 /* ---------- Recovery timeline：現在stepをBlueで強調 ---------- */
