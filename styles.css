@@ -875,13 +875,16 @@ button.btn-inline {
 }
 
 /* ---------- ホーム：統計カード ---------- */
+/* stat-grid/.stat-card/.stat-label等の定義はここ1箇所にまとめる（以前はicon追加時に
+   別ブロックへ上書きを追加していたため、同じセレクタが2箇所に分かれていた）。
+   labelは必ず1行（所属選手/共有中/入力済み/未入力/IL登録中/トリートメント）である前提で、
+   2行対応のmin-height/flex-end等の調整は不要にした */
 
-/* 6枚（IL登録中・本日のトリートメントを追加）を無理に横一列にせず、3列×2段にする */
-.stat-grid {
+.stat-group .stat-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 14px;
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
 
 .stat-card {
@@ -889,22 +892,55 @@ button.btn-inline {
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
-  padding: 16px 18px;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  /* 6枚すべてを同じ高さに揃える（icon 32px + padding 32px + label 1行 + gap 2px + value 1行）。
+     3グループはそれぞれ別のgrid（.stat-group単位）のため、grid行のstretchだけでは
+     グループ間の高さが揃わない。この固定値で揃える */
+  height: 80px;
+}
+
+.stat-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--blue-soft);
+  color: var(--blue-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-card-body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  height: 100%;
 }
 
 .stat-label {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-secondary);
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stat-value {
   font-size: 26px;
   font-weight: 800;
   color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .account-actions {
@@ -1100,10 +1136,6 @@ button.btn-inline {
   .team-content {
     padding: 20px 18px 60px;
   }
-  .stat-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-  }
 }
 
 @media (max-width: 768px) {
@@ -1162,11 +1194,6 @@ button.btn-inline {
 
   .team-content {
     padding: 16px 14px 50px;
-  }
-
-  .stat-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
   }
 
   .summary-grid {
@@ -1520,50 +1547,6 @@ textarea:focus-visible,
   min-height: 30px;
 }
 
-/* ---------- ホーム：統計カード（icon付き） ---------- */
-
-.stat-card {
-  flex-direction: row;
-  align-items: center;
-  gap: 12px;
-  /* 6枚すべてを同じ高さに揃える。長いlabel（コンディション共有中/本日のトリートメント）が
-     2行になっても、他のカードとサイズ・数値位置がズレないための固定値
-     （icon 38px + padding 32px + label 2行分32px + gap 2px + value 32pxを収める高さ） */
-  min-height: 96px;
-  height: 100%;
-}
-
-.stat-icon {
-  width: 38px;
-  height: 38px;
-  flex-shrink: 0;
-  border-radius: 10px;
-  background: var(--blue-soft);
-  color: var(--blue-dark);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.stat-card-body {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-  min-width: 0;
-  height: 100%;
-}
-
-/* labelを常に2行分の高さで確保することで、1行のlabel（所属選手等）でも2行のlabel
-   （コンディション共有中等）と同じ位置にvalueが来るようにする。align-items:flex-endで
-   1行の場合はlabel下端をvalueの直前に揃える */
-.stat-label {
-  display: flex;
-  align-items: flex-end;
-  min-height: 32px;
-  line-height: 1.3;
-}
-
 /* ---------- テーブル：見出し・行hoverの統一（クリック不可の表も含める） ---------- */
 
 .data-table th {
@@ -1641,11 +1624,6 @@ textarea:focus-visible,
     margin: 0 20%;
   }
 
-  .stat-icon {
-    width: 32px;
-    height: 32px;
-  }
-
   .icon {
     width: 16px;
     height: 16px;
@@ -1712,11 +1690,6 @@ textarea:focus-visible,
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin: 0 0 8px 2px;
-}
-
-.stat-group .stat-grid {
-  grid-template-columns: repeat(2, 1fr);
-  margin-bottom: 0;
 }
 
 /* ---------- 共通empty state（Treatment/IL/選手一覧/InBody OFF等で統一） ---------- */
@@ -1933,8 +1906,13 @@ textarea:focus-visible,
 }
 
 /* ---------- Responsive ---------- */
-
-@media (max-width: 1024px) {
+/* 1280px以下では3列のまま維持すると1カードの幅が「トリートメント」ラベルの
+   自然な文字幅より狭くなり省略記号が出てしまうため、2列（3つ目のグループは
+   次の行に単独で入り、行の後半は空く）にして各カードの幅を確保する。
+   カード自体の横幅・高さは同じ行の2カードと変わらないため、サイズのズレにはならない。
+   実測：1050px幅で3列のままだと省略が発生することを確認済みのため、しきい値は
+   1024pxではなく余裕を持って1280pxにしている */
+@media (max-width: 1280px) {
   .stat-groups {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -1944,10 +1922,6 @@ textarea:focus-visible,
   .stat-groups {
     grid-template-columns: 1fr;
     gap: 14px;
-  }
-
-  .stat-group .stat-grid {
-    grid-template-columns: repeat(2, 1fr);
   }
 
   .today-overview {
