@@ -684,6 +684,28 @@ button.btn-inline {
   font-weight: 700;
 }
 
+/* 生理情報：今日のコンディションカード内へ統合するサブセクション。display:contentsで
+   自身は箱を作らず、子要素（区切り線・見出し・各項目）が親の.latest-condition-gridに
+   直接配置されるようにする（2列レイアウトをそのまま共有する） */
+.latest-condition-subsection {
+  display: contents;
+}
+
+.latest-condition-subsection[hidden] {
+  display: none;
+}
+
+.latest-condition-subsection-divider {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--border);
+  margin: 4px 0 2px;
+}
+
+/* 症状・メモは2列に分けず、それぞれ1行を専有する（値が長くなりやすいため） */
+.latest-condition-item-full {
+  grid-column: 1 / -1;
+}
+
 /* ---------- 選手詳細：コンディション同期データ一覧（直近7日） ---------- */
 
 .condition-list {
