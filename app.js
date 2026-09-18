@@ -1157,6 +1157,28 @@ async function fetchLatestConditionByUser(teamId, sharedUserIds) {
   return map;
 }
 
+// 一覧の「生理中」badge表示専用。team_menstrual_sharesは選手ごとに複数の日付の行を持つため、
+// その選手の最新Condition record_dateと同じ日の行だけを対象にする（第14項：日付が
+// ずれている生理情報は一覧・詳細どちらにも出さない）。statusだけを取得する（一覧では詳細を出さない）
+async function fetchMenstrualStatusByUser(teamId, sharedUserIds, latestConditionByUserId) {
+  if (sharedUserIds.length === 0) return new Map();
+  const { data, error } = await client
+    .from("team_menstrual_shares")
+    .select("user_id, record_date, status")
+    .eq("team_id", teamId)
+    .in("user_id", sharedUserIds);
+  if (error) throw error;
+
+  const map = new Map();
+  (data || []).forEach((row) => {
+    const latestCondition = latestConditionByUserId.get(row.user_id);
+    if (latestCondition && row.record_date === latestCondition.record_date) {
+      map.set(row.user_id, row.status);
+    }
+  });
+  return map;
+}
+
 async function loadMembers(teamId) {
   membersStatus.style.color = "";
   setLoadingStatus(membersStatus, "取得中...");
@@ -1193,7 +1215,7 @@ async function loadMembers(teamId) {
     // team_share_permissionsは既存のRLS（team_adminsの行が存在すれば閲覧可）でそのまま取得できる。
     // data_category=condition の行だけをサーバー側で絞り込む（mealの行はDBに残っているが、
     // チーム共有はconditionのみに整理済みのため表示では使わない）
-    const [profilesResult, permissionsResult, inbodyPermissionsResult] = await Promise.all([
+    const [profilesResult, permissionsResult, inbodyPermissionsResult, menstrualPermissionsResult] = await Promise.all([
       client.rpc("get_team_member_profiles", { p_team_id: teamId }),
       client
         .from("team_share_permissions")
@@ -1207,10 +1229,17 @@ async function loadMembers(teamId) {
         .eq("team_id", teamId)
         .eq("data_category", "inbody")
         .in("user_id", userIds),
+      client
+        .from("team_share_permissions")
+        .select("user_id, is_shared")
+        .eq("team_id", teamId)
+        .eq("data_category", "menstrual")
+        .in("user_id", userIds),
     ]);
     if (profilesResult.error) throw profilesResult.error;
     if (permissionsResult.error) throw permissionsResult.error;
     if (inbodyPermissionsResult.error) throw inbodyPermissionsResult.error;
+    if (menstrualPermissionsResult.error) throw menstrualPermissionsResult.error;
 
     const displayNameByUserId = new Map(
       (profilesResult.data || []).map((p) => [p.user_id, p.display_name])
@@ -1221,9 +1250,17 @@ async function loadMembers(teamId) {
     const inbodySharedByUserId = new Map(
       (inbodyPermissionsResult.data || []).map((row) => [row.user_id, !!row.is_shared])
     );
+    const menstrualSharedByUserId = new Map(
+      (menstrualPermissionsResult.data || []).map((row) => [row.user_id, !!row.is_shared])
+    );
 
     const sharedUserIds = userIds.filter((id) => conditionSharedByUserId.get(id));
     const latestConditionByUserId = await fetchLatestConditionByUser(teamId, sharedUserIds);
+
+    // 生理情報：共有ONの選手のうち「生理中」の選手だけ一覧に小さいbadgeを出すための最小限の取得
+    // （第9項：一覧では詳細を出さない。status以外は取得しない）
+    const menstrualSharedUserIds = userIds.filter((id) => menstrualSharedByUserId.get(id));
+    const menstrualStatusByUserId = await fetchMenstrualStatusByUser(teamId, menstrualSharedUserIds, latestConditionByUserId);
 
     const enriched = members.map((m) => {
       return {
@@ -1233,7 +1270,9 @@ async function loadMembers(teamId) {
         displayName: displayNameByUserId.get(m.user_id) || null,
         conditionShared: conditionSharedByUserId.get(m.user_id) || false,
         inbodyShared: inbodySharedByUserId.get(m.user_id) || false,
+        menstrualShared: menstrualSharedByUserId.get(m.user_id) || false,
         latestCondition: latestConditionByUserId.get(m.user_id) || null,
+        menstrualStatus: menstrualStatusByUserId.get(m.user_id) || null,
       };
     });
 
@@ -1296,6 +1335,13 @@ function buildMemberRow(member) {
     ilBadge.className = ilStatusBadgeClassName(activeIlRecord.status) + " il-inline-badge";
     ilBadge.textContent = IL_STATUS_LABEL[activeIlRecord.status] || "IL";
     shareCell.appendChild(ilBadge);
+  }
+  // 生理情報：共有ONかつ現在「生理中」の選手だけ、小さいbadgeを添える（第9項。詳細は出さない）
+  if (member.menstrualShared && member.menstrualStatus === "duringPeriod") {
+    const menstrualBadge = document.createElement("span");
+    menstrualBadge.className = "badge-pill il-inline-badge";
+    menstrualBadge.textContent = "生理中";
+    shareCell.appendChild(menstrualBadge);
   }
   row.appendChild(shareCell);
 
@@ -1536,9 +1582,14 @@ function openMemberDetail(member) {
   document.getElementById("memberDetailInBodyLatestCard").hidden = true;
   document.getElementById("memberDetailInBodyEmpty").hidden = true;
 
+  // 生理情報カード：共有OFFまたは未入力の場合は表示しない（第8項）ため、開き直すたびに一旦隠す
+  document.getElementById("memberDetailMenstrualCard").hidden = true;
+
   memberDetailPanel.hidden = false;
   memberDetailBackdrop.hidden = false;
 
+  // 生理情報は「そのConditionのrecord_dateと同じ日」を表示するため、loadMemberConditionShares
+  // が最新Conditionのrecord_dateを確定させた後、その中から呼び出す（第13項）
   loadMemberConditionShares(member);
   loadMemberInBodyShares(member);
 }
@@ -1880,6 +1931,7 @@ async function loadMemberConditionShares(member) {
       "この選手はコンディション共有をOFFにしています。";
     renderLatestConditionCard(null);
     renderConditionSummaryAndChart([]);
+    loadMemberMenstrualShare(member, null);
     return;
   }
 
@@ -1905,17 +1957,90 @@ async function loadMemberConditionShares(member) {
         "選手がコンディションを記録すると、ここに表示されます。";
       renderLatestConditionCard(null);
       renderConditionSummaryAndChart([]);
+      loadMemberMenstrualShare(member, null);
       return;
     }
     renderLatestConditionCard(rows[0]);
     // サマリー・グラフは直近7日の取得結果（rows）をそのまま再利用する（追加の問い合わせはしない）
     renderConditionSummaryAndChart(rows);
     rows.forEach((row) => memberDetailConditionList.appendChild(buildConditionRow(row)));
+    // 生理情報：「最新Condition（rows[0]）のrecord_dateと同じ日」の生理情報を表示する（第13項）
+    loadMemberMenstrualShare(member, rows[0].record_date);
   } catch (error) {
     memberDetailConditionStatus.style.color = "var(--danger)";
     memberDetailConditionStatus.textContent = "コンディションを取得できませんでした。";
     renderConditionSummaryAndChart([]);
     renderLatestConditionCard(null);
+    loadMemberMenstrualShare(member, null);
+  }
+}
+
+const MENSTRUAL_STATUS_LABEL = {
+  duringPeriod: "生理中",
+  beforePeriod: "生理前",
+  afterPeriod: "生理後",
+  notApplicable: "該当なし",
+  unanswered: "未回答",
+};
+const MENSTRUAL_PAIN_LABEL = { none: "なし", mild: "軽い", moderate: "中程度", severe: "強い" };
+const MENSTRUAL_SYMPTOM_LABEL = {
+  abdominalPain: "腹痛",
+  lowerBackPain: "腰痛",
+  headache: "頭痛",
+  fatigue: "だるさ",
+  drowsiness: "眠気",
+  other: "その他",
+};
+
+// コンディション詳細内の「生理情報」カードを埋める。生理状況/痛み/症状/メモのみを表示し
+// （第8項）、値が無い項目は"-"のままにする
+function renderMenstrualCard(row) {
+  const card = document.getElementById("memberDetailMenstrualCard");
+  card.hidden = false;
+  document.getElementById("memberDetailMenstrualStatus").textContent =
+    MENSTRUAL_STATUS_LABEL[row.status] || row.status;
+  document.getElementById("memberDetailMenstrualPain").textContent = row.pain_level
+    ? MENSTRUAL_PAIN_LABEL[row.pain_level] || row.pain_level
+    : "-";
+
+  const symptomNames = (row.symptoms || []).map((s) => {
+    if (s === "other" && row.symptom_other_text) {
+      return `その他（${row.symptom_other_text}）`;
+    }
+    return MENSTRUAL_SYMPTOM_LABEL[s] || s;
+  });
+  document.getElementById("memberDetailMenstrualSymptoms").textContent =
+    symptomNames.length > 0 ? symptomNames.join("・") : "-";
+  document.getElementById("memberDetailMenstrualMemo").textContent = row.memo || "-";
+}
+
+// team_menstrual_sharesを直接SELECTする。menstrual共有がOFFの選手についてはRLSが自動的に
+// 0件を返すため、ここでの追加のアクセス制御は不要（member.menstrualSharedは表示分岐にのみ使う）。
+// recordDateは「今表示しているConditionのrecord_date」（呼び出し元のloadMemberConditionShares
+// が確定させる）。共有OFF・recordDateが無い（Condition自体が無い）・その日のログが無い場合は
+// カード自体を表示しない（第8項・第13項：9/18のConditionには9/18の生理情報だけを表示する）
+async function loadMemberMenstrualShare(member, recordDate) {
+  if (!member.menstrualShared || !recordDate) {
+    document.getElementById("memberDetailMenstrualCard").hidden = true;
+    return;
+  }
+  try {
+    const { data, error } = await client
+      .from("team_menstrual_shares")
+      .select("status, pain_level, symptoms, symptom_other_text, memo")
+      .eq("team_id", currentTeamId)
+      .eq("user_id", member.userId)
+      .eq("record_date", recordDate)
+      .maybeSingle();
+    if (error) throw error;
+
+    if (!data) {
+      document.getElementById("memberDetailMenstrualCard").hidden = true;
+      return;
+    }
+    renderMenstrualCard(data);
+  } catch (error) {
+    document.getElementById("memberDetailMenstrualCard").hidden = true;
   }
 }
 

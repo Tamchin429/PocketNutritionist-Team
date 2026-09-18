@@ -740,6 +740,29 @@
       <div id="memberDetailInBodyStatus" class="status-msg"></div>
       <div id="memberDetailInBodyHistoryList" class="condition-list"></div>
 
+      <hr class="modal-divider" />
+
+      <!-- 生理情報：共有OFFまたは未入力の場合はJS側でhiddenのままにする（第8項） -->
+      <div class="latest-condition-grid" id="memberDetailMenstrualCard" hidden>
+        <div class="latest-condition-date">生理情報</div>
+        <div class="latest-condition-item">
+          <span class="latest-condition-label">生理状況</span>
+          <span class="latest-condition-value" id="memberDetailMenstrualStatus">-</span>
+        </div>
+        <div class="latest-condition-item">
+          <span class="latest-condition-label">痛み</span>
+          <span class="latest-condition-value" id="memberDetailMenstrualPain">-</span>
+        </div>
+        <div class="latest-condition-item latest-condition-item-secondary">
+          <span class="latest-condition-label">症状</span>
+          <span class="latest-condition-value" id="memberDetailMenstrualSymptoms">-</span>
+        </div>
+        <div class="latest-condition-item latest-condition-item-secondary">
+          <span class="latest-condition-label">メモ</span>
+          <span class="latest-condition-value" id="memberDetailMenstrualMemo">-</span>
+        </div>
+      </div>
+
       <button id="removeMemberBtn" class="danger btn-block" type="button">チームから外す</button>
       <div id="memberDetailActionStatus" class="status-msg"></div>
     </div>
